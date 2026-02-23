@@ -10,8 +10,6 @@
     "Other"
   ],
   "activationEvents": [
-    "onCommand:conduit.login",
-    "onCommand:conduit.openPanel",
     "onUri:conduit"
   ],
   "main": "./dist/extension.js",
@@ -164,7 +162,6 @@
           "type": "string",
           "default": "http://localhost:3001",
           "description": "URL of the Conduit backend server for history and authentication features."
-
         }
       }
     }

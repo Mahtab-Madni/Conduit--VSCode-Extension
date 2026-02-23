@@ -461,231 +461,30 @@ export class PayloadPredictor {
       // Handle specific API errors with helpful messages
       const errorMessage =
         error instanceof Error ? error.message : String(error);
-        
-      if (errorMessage.includes("ECONNREFUSED") || errorMessage.includes("fetch")) {
+
+      if (
+        errorMessage.includes("ECONNREFUSED") ||
+        errorMessage.includes("fetch")
+      ) {
         vscode.window.showErrorMessage(
           "❌ Cannot connect to Conduit backend. Make sure the backend server is running on port 3002.",
-          "Check Backend"
+          "Check Backend",
         );
       } else {
-        vscode.window.showErrorMessage(
-          `❌ AI prediction failed: ${errorMessage}`,
-          "Help"
-        ).then((choice) => {
-          if (choice === "Help") {
-            vscode.window.showInformationMessage(
-              "AI prediction requires:\n\n" +
-              "1. The Conduit backend server running (port 3002)\n" +
-              "2. Valid route controller code\n" +
-              "3. Proper network connectivity",
-              { modal: true }
-            );
-          }
-        });
+        vscode.window
+          .showErrorMessage(`❌ AI prediction failed: ${errorMessage}`, "Help")
+          .then((choice) => {
+            if (choice === "Help") {
+              vscode.window.showInformationMessage(
+                "AI prediction requires:\n\n" +
+                  "1. The Conduit backend server running (port 3002)\n" +
+                  "2. Valid route controller code\n" +
+                  "3. Proper network connectivity",
+                { modal: true },
+              );
+            }
+          });
       }
-      return null;
-    }
-  }
-
-  private buildPrompt(context: ControllerContext): string {
-    return `Analyze this Express.js controller and predict the request body structure.
-
-Route: ${context.route.method} ${context.route.path}
-Middleware: ${context.route.middlewares.join(", ") || "none"}
-Detected req.body fields: ${context.reqBodyFields.join(", ") || "none"}
-
-Controller Code:
-\`\`\`javascript
-${context.controllerCode}
-\`\`\`
-
-Based on this controller, predict what the request body should contain AND what headers might be needed. Consider:
-1. The detected req.body field accesses
-2. The middleware (authentication, validation, etc.)
-3. The route path and HTTP method
-4. Common patterns for this type of endpoint
-5. Content-Type requirements
-6. Authentication headers
-7. Custom API headers
-
-Respond with ONLY valid JSON in this exact format:
-{
-  "fields": [
-    {
-      "name": "fieldName",
-      "type": "string|number|boolean|array|object",
-      "required": true|false,
-      "example": "example value",
-      "description": "brief description of the field"
-    }
-  ],
-  "headers": [
-    {
-      "name": "headerName",
-      "value": "example value or placeholder",
-      "description": "brief description of the header",
-      "required": true|false
-    }
-  ]
-}`;
-  }
-
-  private async callGroqAPI(apiKey: string, prompt: string): Promise<string> {
-    const groq = new Groq({
-      apiKey: apiKey,
-    });
-
-    // Try different Groq models in order of preference
-    const modelNames = [
-      "openai/gpt-oss-120b",
-      "openai/gpt-oss-20b",
-      "meta-llama/llama-prompt-guard-2-22m",
-    ];
-
-    for (const modelName of modelNames) {
-      try {
-        console.log(`Trying Groq model: ${modelName}`);
-
-        const chatCompletion = await groq.chat.completions.create({
-          messages: [
-            {
-              role: "user",
-              content: prompt,
-            },
-          ],
-          model: modelName,
-          temperature: 0.7,
-          max_tokens: 2048,
-        });
-
-        const text = chatCompletion.choices[0]?.message?.content;
-
-        if (!text) {
-          throw new Error("No response from Groq API");
-        }
-
-        console.log(`Success with Groq model: ${modelName}`);
-        return text;
-      } catch (error: any) {
-        console.log(`Failed with Groq model ${modelName}:`, error.message);
-        if (modelName === modelNames[modelNames.length - 1]) {
-          // If this was the last model to try, throw the error
-          throw error;
-        }
-        // Otherwise, continue to the next model
-        continue;
-      }
-    }
-
-    throw new Error("All Groq models failed");
-  }
-
-  private async callAI(prompt: string): Promise<string> {
-    const groqApiKey = await this.getGroqApiKey();
-    if (!groqApiKey) {
-      throw new Error(
-        "No Groq API key configured. Please configure your Groq API key.",
-      );
-    }
-
-    console.log("Using Groq API for AI prediction...");
-    return await this.callGroqAPI(groqApiKey, prompt);
-  }
-
-  private parseResponse(response: string): PayloadPrediction | null {
-    try {
-      // Clean up the response - remove markdown code blocks if present
-      let cleanResponse = response.trim();
-      if (cleanResponse.startsWith("```json")) {
-        cleanResponse = cleanResponse
-          .replace(/^```json\s*/, "")
-          .replace(/\s*```$/, "");
-      } else if (cleanResponse.startsWith("```")) {
-        cleanResponse = cleanResponse
-          .replace(/^```\s*/, "")
-          .replace(/\s*```$/, "");
-      }
-
-      const parsed = JSON.parse(cleanResponse);
-
-      // Validate the structure
-      if (!parsed.fields || !Array.isArray(parsed.fields)) {
-        throw new Error("Invalid response structure");
-      }
-
-      // Validate each field
-      for (const field of parsed.fields) {
-        if (!field.name || !field.type || typeof field.required !== "boolean") {
-          throw new Error("Invalid field structure");
-        }
-      }
-
-      // Validate headers if present
-      if (parsed.headers) {
-        if (!Array.isArray(parsed.headers)) {
-          throw new Error("Invalid headers structure");
-        }
-        for (const header of parsed.headers) {
-          if (
-            !header.name ||
-            !header.value ||
-            typeof header.required !== "boolean"
-          ) {
-            throw new Error("Invalid header structure");
-          }
-        }
-      }
-
-      return parsed as PayloadPrediction;
-    } catch (error) {
-      console.error("Error parsing Groq response:", error);
-      console.error("Raw response:", response);
-      return null;
-    }
-  }
-
-  async suggestErrorFix(
-    route: DetectedRoute,
-    errorResponse: any,
-    requestPayload: any,
-    statusCode: number,
-  ): Promise<string | null> {
-    const context = await this.extractControllerContext(route);
-    if (!context) {
-      return null;
-    }
-
-    const prompt = `Analyze this API error and suggest what might be wrong.
-
-Route: ${context.route.method} ${context.route.path}
-Status Code: ${statusCode}
-Request Payload: ${JSON.stringify(requestPayload, null, 2)}
-Error Response: ${JSON.stringify(errorResponse, null, 2)}
-
-Controller Code:
-\`\`\`javascript
-${context.controllerCode}
-\`\`\`
-
-Based on the error response and the controller code, suggest what might be wrong with the request. Be specific and actionable.`;
-
-    try {
-      const response = await this.callAI(prompt);
-      return response.trim();
-    } catch (error) {
-      console.error("Error getting error suggestion:", error);
-
-      // Handle API key errors
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      if (
-        errorMessage.includes("API_KEY_INVALID") ||
-        errorMessage.includes("401") ||
-        errorMessage.includes("RATE_LIMIT_EXCEEDED")
-      ) {
-        console.warn("API key or rate limit issue:", errorMessage);
-      }
-
       return null;
     }
   }
@@ -712,28 +511,31 @@ Based on the error response and the controller code, suggest what might be wrong
   }
 
   private async callBackendAI(context: ControllerContext): Promise<any> {
-    const config = vscode.workspace.getConfiguration('conduit');
-    const backendUrl = config.get<string>('backend.url') || 'http://localhost:3002';
+    const config = vscode.workspace.getConfiguration("conduit");
+    const backendUrl =
+      config.get<string>("backend.url") || "http://localhost:3002";
 
     const routeInfo = {
       method: context.route.method,
       path: context.route.path,
       middlewares: context.route.middlewares,
       reqBodyFields: context.reqBodyFields,
-      controllerCode: context.controllerCode
+      controllerCode: context.controllerCode,
     };
 
     const response = await fetch(`${backendUrl}/api/ai/predict-payload`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json'
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify({ routeInfo })
+      body: JSON.stringify({ routeInfo }),
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(`Backend AI call failed: ${response.status} - ${errorData.error || response.statusText}`);
+      const errorData = await response.json().catch(() => ({})) as { error?: string };
+      throw new Error(
+        `Backend AI call failed: ${response.status} - ${errorData.error || response.statusText}`,
+      );
     }
 
     return await response.json();
@@ -748,23 +550,23 @@ Based on the error response and the controller code, suggest what might be wrong
       // The backend returns a more flexible format, so we need to convert it
       // to match the expected PayloadPrediction structure
       const payload = response.payload;
-      
+
       // If the payload is already in the expected format, use it directly
       if (payload.fields && Array.isArray(payload.fields)) {
         return payload as PayloadPrediction;
       }
-      
+
       // Otherwise, try to convert the raw payload to the expected format
       const fields = [];
-      
-      if (typeof payload === 'object' && payload !== null) {
+
+      if (typeof payload === "object" && payload !== null) {
         for (const [key, value] of Object.entries(payload)) {
           fields.push({
             name: key,
             type: this.inferType(value),
             required: true,
-            example: value,
-            description: `Generated field for ${key}`
+            example: String(value),
+            description: `Generated field for ${key}`,
           });
         }
       }
@@ -776,9 +578,9 @@ Based on the error response and the controller code, suggest what might be wrong
             name: "Content-Type",
             value: "application/json",
             description: "Content type for JSON payload",
-            required: true
-          }
-        ]
+            required: true,
+          },
+        ],
       };
     } catch (error) {
       console.error("Error parsing backend response:", error);
@@ -787,8 +589,12 @@ Based on the error response and the controller code, suggest what might be wrong
   }
 
   private inferType(value: any): string {
-    if (Array.isArray(value)) return 'array';
-    if (value === null) return 'string';
+    if (Array.isArray(value)) {
+      return "array";
+    }
+    if (value === null) {
+      return "string";
+    }
     return typeof value;
   }
 }

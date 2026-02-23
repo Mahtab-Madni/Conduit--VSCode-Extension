@@ -16,7 +16,7 @@ const { verify, sign } = jwt;
 
 // Initialize Groq client
 const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY
+  apiKey: process.env.GROQ_API_KEY,
 });
 
 const app = express();
@@ -250,7 +250,7 @@ app.post("/api/ai/predict-payload", async (req, res) => {
     // Build prompt for Groq
     let prompt = `Based on this API route information, generate a realistic JSON payload:\n\n`;
     prompt += `Route: ${routeInfo.method} ${routeInfo.path}\n`;
-    
+
     if (routeInfo.description) {
       prompt += `Description: ${routeInfo.description}\n`;
     }
@@ -268,21 +268,22 @@ app.post("/api/ai/predict-payload", async (req, res) => {
     const completion = await groq.chat.completions.create({
       messages: [
         {
-          role: "system", 
-          content: "You are an API payload expert. Generate realistic JSON payloads based on route information. Only respond with valid JSON."
+          role: "system",
+          content:
+            "You are an API payload expert. Generate realistic JSON payloads based on route information. Only respond with valid JSON.",
         },
         {
           role: "user",
-          content: prompt
-        }
+          content: prompt,
+        },
       ],
       model: "llama3-8b-8192",
       temperature: 0.7,
-      max_tokens: 1000
+      max_tokens: 1000,
     });
 
     const generatedContent = completion.choices[0]?.message?.content;
-    
+
     if (!generatedContent) {
       throw new Error("No response from AI");
     }
@@ -306,15 +307,14 @@ app.post("/api/ai/predict-payload", async (req, res) => {
       payload,
       metadata: {
         model: "llama3-8b-8192",
-        usedMongoData: !!(mongoData && mongoData.length > 0)
-      }
+        usedMongoData: !!(mongoData && mongoData.length > 0),
+      },
     });
-
   } catch (error) {
     console.error("AI Payload Prediction Error:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: "Failed to generate payload prediction",
-      details: error.message 
+      details: error.message,
     });
   }
 });
