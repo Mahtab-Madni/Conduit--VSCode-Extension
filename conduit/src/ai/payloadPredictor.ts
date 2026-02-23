@@ -1,7 +1,6 @@
 import * as vscode from "vscode";
 import * as fs from "fs";
 import * as path from "path";
-import Groq from "groq-sdk";
 import { DetectedRoute } from "../routeDetection";
 import { parse } from "@babel/parser";
 import traverse, { NodePath } from "@babel/traverse";
@@ -54,18 +53,9 @@ export class PayloadPredictor {
   }
 
   async getGroqApiKey(): Promise<string | undefined> {
-    // Get API key from VS Code settings
-    const config = vscode.workspace.getConfiguration('conduit');
-    const apiKey = config.get<string>('groqApiKey');
-    
-    if (!apiKey) {
-      vscode.window.showErrorMessage(
-        'Groq API Key not configured. Please set it in Settings > Extensions > Conduit > Groq API Key'
-      );
-      return undefined;
-    }
-    
-    return apiKey;
+    // AI features are now handled by the backend server
+    // Users don't need to provide their own API key
+    return "backend-handled";
   }
 
   async predictBaseUrl(route: DetectedRoute): Promise<string> {
@@ -462,57 +452,36 @@ export class PayloadPredictor {
       return null;
     }
 
-    const prompt = this.buildPrompt(context);
-
     try {
-      const response = await this.callAI(prompt);
-      return this.parseResponse(response);
+      const response = await this.callBackendAI(context);
+      return this.parseBackendResponse(response);
     } catch (error) {
-      console.error("Error calling AI APIs:", error);
+      console.error("Error calling AI backend:", error);
 
       // Handle specific API errors with helpful messages
       const errorMessage =
         error instanceof Error ? error.message : String(error);
-      if (
-        errorMessage.includes("API_KEY_INVALID") ||
-        errorMessage.includes("401")
-      ) {
-        vscode.window
-          .showErrorMessage(
-            "❌ Invalid API key. Please reconfigure your Groq API key.",
-            "Configure Key",
-          )
-          .then((choice) => {
-            if (choice === "Configure Key") {
-              vscode.window.showInformationMessage(
-                "✅ API key is already configured! No action needed.",
-              );
-            }
-          });
-      } else if (
-        errorMessage.includes("RATE_LIMIT_EXCEEDED") ||
-        errorMessage.includes("429")
-      ) {
+        
+      if (errorMessage.includes("ECONNREFUSED") || errorMessage.includes("fetch")) {
         vscode.window.showErrorMessage(
-          "⏱️ API rate limit exceeded. Please try again in a few moments.",
+          "❌ Cannot connect to Conduit backend. Make sure the backend server is running on port 3002.",
+          "Check Backend"
         );
-      } else if (errorMessage.includes("No Groq API key configured")) {
-        vscode.window
-          .showWarningMessage(
-            "⚠️ No Groq API key configured. Please configure your Groq API key for predictions.",
-            "Configure Groq",
-          )
-          .then((choice) => {
-            if (choice === "Configure Groq") {
-              vscode.window.showInformationMessage(
-                "✅ API key is already configured! Try refreshing the panel.",
-              );
-            }
-          });
       } else {
         vscode.window.showErrorMessage(
           `❌ AI prediction failed: ${errorMessage}`,
-        );
+          "Help"
+        ).then((choice) => {
+          if (choice === "Help") {
+            vscode.window.showInformationMessage(
+              "AI prediction requires:\n\n" +
+              "1. The Conduit backend server running (port 3002)\n" +
+              "2. Valid route controller code\n" +
+              "3. Proper network connectivity",
+              { modal: true }
+            );
+          }
+        });
       }
       return null;
     }
@@ -740,5 +709,86 @@ Based on the error response and the controller code, suggest what might be wrong
         middleware.toLowerCase().includes(authMw.toLowerCase()),
       ),
     );
+  }
+
+  private async callBackendAI(context: ControllerContext): Promise<any> {
+    const config = vscode.workspace.getConfiguration('conduit');
+    const backendUrl = config.get<string>('backend.url') || 'http://localhost:3002';
+
+    const routeInfo = {
+      method: context.route.method,
+      path: context.route.path,
+      middlewares: context.route.middlewares,
+      reqBodyFields: context.reqBodyFields,
+      controllerCode: context.controllerCode
+    };
+
+    const response = await fetch(`${backendUrl}/api/ai/predict-payload`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ routeInfo })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(`Backend AI call failed: ${response.status} - ${errorData.error || response.statusText}`);
+    }
+
+    return await response.json();
+  }
+
+  private parseBackendResponse(response: any): PayloadPrediction | null {
+    try {
+      if (!response.success || !response.payload) {
+        throw new Error("Invalid backend response structure");
+      }
+
+      // The backend returns a more flexible format, so we need to convert it
+      // to match the expected PayloadPrediction structure
+      const payload = response.payload;
+      
+      // If the payload is already in the expected format, use it directly
+      if (payload.fields && Array.isArray(payload.fields)) {
+        return payload as PayloadPrediction;
+      }
+      
+      // Otherwise, try to convert the raw payload to the expected format
+      const fields = [];
+      
+      if (typeof payload === 'object' && payload !== null) {
+        for (const [key, value] of Object.entries(payload)) {
+          fields.push({
+            name: key,
+            type: this.inferType(value),
+            required: true,
+            example: value,
+            description: `Generated field for ${key}`
+          });
+        }
+      }
+
+      return {
+        fields,
+        headers: [
+          {
+            name: "Content-Type",
+            value: "application/json",
+            description: "Content type for JSON payload",
+            required: true
+          }
+        ]
+      };
+    } catch (error) {
+      console.error("Error parsing backend response:", error);
+      return null;
+    }
+  }
+
+  private inferType(value: any): string {
+    if (Array.isArray(value)) return 'array';
+    if (value === null) return 'string';
+    return typeof value;
   }
 }

@@ -7,11 +7,17 @@ import { Strategy as GitHubStrategy } from "passport-github2";
 import jwt from "jsonwebtoken";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
+import Groq from "groq-sdk";
 import { User, RouteSnapshot, Collection } from "./models/index.js";
 
 dotenv.config();
 const { connect, connection } = mongoose;
 const { verify, sign } = jwt;
+
+// Initialize Groq client
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY
+});
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -230,6 +236,87 @@ app.get("/api/user/me", authenticateToken, (req, res) => {
     email: req.user.email,
     avatarUrl: req.user.avatarUrl,
   });
+});
+
+// AI Routes - Payload Prediction
+app.post("/api/ai/predict-payload", async (req, res) => {
+  try {
+    const { routeInfo, mongoData } = req.body;
+
+    if (!routeInfo) {
+      return res.status(400).json({ error: "Route information is required" });
+    }
+
+    // Build prompt for Groq
+    let prompt = `Based on this API route information, generate a realistic JSON payload:\n\n`;
+    prompt += `Route: ${routeInfo.method} ${routeInfo.path}\n`;
+    
+    if (routeInfo.description) {
+      prompt += `Description: ${routeInfo.description}\n`;
+    }
+
+    if (routeInfo.parameters && routeInfo.parameters.length > 0) {
+      prompt += `Parameters: ${JSON.stringify(routeInfo.parameters, null, 2)}\n`;
+    }
+
+    if (mongoData && mongoData.length > 0) {
+      prompt += `\nExample data from MongoDB:\n${JSON.stringify(mongoData, null, 2)}\n`;
+    }
+
+    prompt += `\nGenerate a realistic JSON payload for this ${routeInfo.method} request. Only respond with valid JSON, no explanations.`;
+
+    const completion = await groq.chat.completions.create({
+      messages: [
+        {
+          role: "system", 
+          content: "You are an API payload expert. Generate realistic JSON payloads based on route information. Only respond with valid JSON."
+        },
+        {
+          role: "user",
+          content: prompt
+        }
+      ],
+      model: "llama3-8b-8192",
+      temperature: 0.7,
+      max_tokens: 1000
+    });
+
+    const generatedContent = completion.choices[0]?.message?.content;
+    
+    if (!generatedContent) {
+      throw new Error("No response from AI");
+    }
+
+    // Try to parse as JSON to validate
+    let payload;
+    try {
+      payload = JSON.parse(generatedContent);
+    } catch (parseError) {
+      // If parsing fails, try to extract JSON from the response
+      const jsonMatch = generatedContent.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        payload = JSON.parse(jsonMatch[0]);
+      } else {
+        throw new Error("AI did not return valid JSON");
+      }
+    }
+
+    res.json({
+      success: true,
+      payload,
+      metadata: {
+        model: "llama3-8b-8192",
+        usedMongoData: !!(mongoData && mongoData.length > 0)
+      }
+    });
+
+  } catch (error) {
+    console.error("AI Payload Prediction Error:", error);
+    res.status(500).json({ 
+      error: "Failed to generate payload prediction",
+      details: error.message 
+    });
+  }
 });
 
 // Collection Routes
