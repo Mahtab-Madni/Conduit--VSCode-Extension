@@ -438,12 +438,14 @@ export class ConduitPanel {
         route: route,
       });
 
-      const suggestion = await this._payloadPredictor.suggestErrorFix(
-        route,
-        errorResponse,
-        requestPayload,
-        statusCode,
-      );
+      // TODO: Implement error suggestion feature
+      // const suggestion = await this._payloadPredictor.suggestErrorFix(
+      //   route,
+      //   errorResponse,
+      //   requestPayload,
+      //   statusCode,
+      // );
+      const suggestion = null; // Temporarily disabled
 
       if (suggestion) {
         // Send suggestion back to webview

@@ -71,6 +71,11 @@
         "category": "Conduit"
       },
       {
+        "command": "conduit.manualTokenEntry",
+        "title": "Manual Token Entry",
+        "category": "Conduit"
+      },
+      {
         "command": "conduit.testUriHandler",
         "title": "Test URI Handler (Debug)",
         "category": "Conduit"

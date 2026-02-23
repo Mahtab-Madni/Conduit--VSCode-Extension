@@ -8,12 +8,12 @@ import jwt from "jsonwebtoken";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import Groq from "groq-sdk";
+import fetch from "node-fetch";
 import { User, RouteSnapshot, Collection } from "./models/index.js";
 
 dotenv.config();
 const { connect, connection } = mongoose;
 const { verify, sign } = jwt;
-
 
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
@@ -25,7 +25,7 @@ const PORT = process.env.PORT || 3002;
 // Security middleware
 app.use(
   helmet({
-    contentSecurityPolicy: false, // Disable CSP for development
+    contentSecurityPolicy: false, // Disable CSP for development (adjust for production)
   }),
 );
 
@@ -37,29 +37,34 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 5, // Limit auth attempts
   message: "Too many authentication attempts, please try again later.",
 });
 
-
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || "http://localhost:3000",
+    origin: true,
     credentials: true,
+    optionsSuccessStatus: 200,
+    allowedHeaders: [
+      "Origin",
+      "X-Requested-With",
+      "Content-Type",
+      "Accept",
+      "Authorization",
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   }),
 );
 app.use(json({ limit: "10mb" }));
 app.use(urlencoded({ extended: true }));
 app.use(passport.initialize());
 
-
-connect(process.env.MONGODB_URI )
+connect(process.env.MONGODB_URI)
   .then(() => console.log("Connected to MongoDB"))
   .catch((err) => console.error("MongoDB connection error:", err));
-
 
 passport.use(
   new GitHubStrategy(
@@ -135,97 +140,75 @@ app.get("/health", (req, res) => {
   res.json({ status: "OK", timestamp: new Date().toISOString() });
 });
 
-// Authentication Routes
-app.get(
-  "/auth/github",
-  authLimiter,
-  passport.authenticate("github", { scope: ["user:email"] }),
-);
+// VS Code authentication endpoint
+app.post("/auth/vscode", authLimiter, async (req, res) => {
+  try {
+    const { accessToken, account } = req.body;
 
-app.get(
-  "/auth/github/callback",
-  authLimiter,
-  passport.authenticate("github", { session: false }),
-  (req, res) => {
+    if (!accessToken) {
+      return res.status(400).json({ error: "Access token is required" });
+    }
+
+    // Fetch user profile from GitHub using the provided token
+    const githubResponse = await fetch("https://api.github.com/user", {
+      headers: {
+        Authorization: `token ${accessToken}`,
+        "User-Agent": "Conduit-Extension",
+      },
+    });
+
+    if (!githubResponse.ok) {
+      return res.status(401).json({ error: "Invalid GitHub token" });
+    }
+
+    const profile = await githubResponse.json();
+
+    // Look for existing user or create new one
+    let user = await User.findOne({ githubId: profile.id });
+
+    if (user) {
+      // Update existing user
+      user.accessToken = accessToken;
+      user.displayName = profile.name || profile.login;
+      user.email = profile.email;
+      user.avatarUrl = profile.avatar_url;
+      await user.save();
+    } else {
+      // Create new user
+      user = new User({
+        githubId: profile.id,
+        username: profile.login,
+        displayName: profile.name || profile.login,
+        email: profile.email,
+        avatarUrl: profile.avatar_url,
+        profileUrl: profile.html_url,
+        accessToken,
+      });
+      await user.save();
+    }
+
+    // Create JWT token
     const token = sign(
-      { userId: req.user._id, githubId: req.user.githubId },
+      { userId: user._id, githubId: user.githubId },
       process.env.JWT_SECRET,
       { expiresIn: "30d" },
     );
 
-    // Create a simple HTML page that redirects to VS Code
-    const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Conduit Authentication</title>
-        <meta charset="utf-8">
-        <style>
-          body { 
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; 
-            text-align: center; 
-            padding: 50px; 
-            background: #f5f5f5;
-          }
-          .container { 
-            max-width: 500px; 
-            margin: 0 auto; 
-            background: white; 
-            padding: 30px; 
-            border-radius: 10px; 
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-          }
-          .success { color: #28a745; margin-bottom: 20px; }
-          .instructions { margin: 20px 0; line-height: 1.5; }
-          .button { 
-            display: inline-block; 
-            background: #007acc; 
-            color: white; 
-            padding: 10px 20px; 
-            text-decoration: none; 
-            border-radius: 5px; 
-            margin: 10px;
-          }
-          .loading { margin: 20px 0; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <h2 class="success">Authentication Successful!</h2>
-          <div class="instructions">
-            <p>You have successfully logged in to Conduit.</p>
-            <div class="loading">Redirecting to VS Code...</div>
-          </div>
-          <a href="conduit://auth-success?token=${encodeURIComponent(token)}" class="button" id="vscode-link">
-            Open in VS Code
-          </a>
-          <br>
-          <small>If VS Code doesn't open automatically, click the button above.</small>
-        </div>
-
-        <script>
-          // Automatically try to redirect to VS Code
-          setTimeout(function() {
-            window.location.href = 'conduit://auth-success?token=${encodeURIComponent(token)}';
-          }, 1000);
-          
-          // Also try alternative approaches
-          setTimeout(function() {
-            // Try to close the window if opened in a popup
-            try {
-              window.close();
-            } catch (e) {
-              console.log('Cannot close window');
-            }
-          }, 3000);
-        </script>
-      </body>
-      </html>
-    `;
-
-    res.send(html);
-  },
-);
+    res.json({
+      token,
+      user: {
+        id: user._id,
+        username: user.username,
+        displayName: user.displayName,
+        email: user.email,
+        avatarUrl: user.avatarUrl,
+      },
+    });
+  } catch (error) {
+    console.error("VS Code auth error:", error);
+    res.status(500).json({ error: "Authentication failed" });
+  }
+});
 
 // User Routes
 app.get("/api/user/me", authenticateToken, (req, res) => {
@@ -240,6 +223,12 @@ app.get("/api/user/me", authenticateToken, (req, res) => {
 
 // AI Routes - Payload Prediction
 app.post("/api/ai/predict-payload", async (req, res) => {
+  console.log(
+    "[AI] Received payload prediction request from:",
+    req.headers.origin || "No Origin",
+  );
+  console.log("[AI] Request body keys:", Object.keys(req.body));
+
   try {
     const { routeInfo, mongoData } = req.body;
 
@@ -277,7 +266,7 @@ app.post("/api/ai/predict-payload", async (req, res) => {
           content: prompt,
         },
       ],
-      model: "llama3-8b-8192",
+      model: "openai/gpt-oss-120b",
       temperature: 0.7,
       max_tokens: 1000,
     });
@@ -306,7 +295,7 @@ app.post("/api/ai/predict-payload", async (req, res) => {
       success: true,
       payload,
       metadata: {
-        model: "llama3-8b-8192",
+        model: "openai/gpt-oss-120b",
         usedMongoData: !!(mongoData && mongoData.length > 0),
       },
     });

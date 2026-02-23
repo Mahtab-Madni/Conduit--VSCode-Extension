@@ -283,9 +283,54 @@ export class ConduitApiService {
   }
 
   public getAuthUrl(): string {
-    const authUrl = `${this.baseUrl}/auth/github`;
+    // Use a callback URL that will work better with browsers
+    const callbackUrl = encodeURIComponent(
+      "http://localhost:3002/auth/success",
+    );
+    const authUrl = `${this.baseUrl}/auth/github?callback=${callbackUrl}`;
     console.log("[Conduit] Generated auth URL:", authUrl);
     return authUrl;
+  }
+
+  public async authenticateWithVscode(): Promise<void> {
+    try {
+      console.log("[Conduit] Starting VS Code authentication flow...");
+
+      // Use VS Code's built-in authentication system as fallback
+      const session = await vscode.authentication.getSession(
+        "github",
+        ["user:email"],
+        { createIfNone: true },
+      );
+
+      if (session?.accessToken) {
+        console.log("[Conduit] Got GitHub session from VS Code");
+
+        // Exchange the GitHub token for our backend token
+        const response = await fetch(`${this.baseUrl}/auth/vscode`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            accessToken: session.accessToken,
+            account: session.account,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Authentication failed: ${response.statusText}`);
+        }
+
+        const data = (await response.json()) as { token: string; user: any };
+        await this.authenticate(data.token);
+      } else {
+        throw new Error("No authentication session available");
+      }
+    } catch (error: any) {
+      console.error("[Conduit] VS Code authentication failed:", error);
+      throw error;
+    }
   }
 
   // User methods

@@ -304,6 +304,24 @@ export function activate(context: vscode.ExtensionContext) {
             }
           }
 
+          // First try VS Code's built-in authentication
+          try {
+            console.log("[Conduit] Attempting VS Code authentication...");
+            await apiService.authenticateWithVscode();
+
+            const user = await apiService.getCurrentUser();
+            vscode.window.showInformationMessage(
+              `Successfully logged in as ${user.displayName || user.username}!`,
+            );
+            return;
+          } catch (vscodeAuthError) {
+            console.log(
+              "[Conduit] VS Code auth failed, falling back to browser flow:",
+              vscodeAuthError,
+            );
+          }
+
+          // Fallback to browser-based flow
           const authUrl = apiService.getAuthUrl();
           console.log("[Conduit] Auth URL:", authUrl);
           const loginUri = vscode.Uri.parse(authUrl);
@@ -314,12 +332,28 @@ export function activate(context: vscode.ExtensionContext) {
           // Show instruction message with better guidance
           vscode.window
             .showInformationMessage(
-              "Please complete the GitHub OAuth flow in your browser. After authorizing the application, you should automatically be redirected back to VS Code.",
+              "Please complete the GitHub OAuth flow in your browser. After authorizing the application, return to VS Code and check your authentication status.",
               "Check Status",
+              "Try VS Code Auth",
             )
             .then((selection) => {
               if (selection === "Check Status") {
                 vscode.commands.executeCommand("conduit.checkAuthStatus");
+              } else if (selection === "Try VS Code Auth") {
+                // Retry VS Code authentication
+                apiService
+                  .authenticateWithVscode()
+                  .then(async () => {
+                    const user = await apiService.getCurrentUser();
+                    vscode.window.showInformationMessage(
+                      `Successfully logged in as ${user.displayName || user.username}!`,
+                    );
+                  })
+                  .catch((err) => {
+                    vscode.window.showErrorMessage(
+                      `VS Code authentication failed: ${err.message}`,
+                    );
+                  });
               }
             });
         } catch (error) {
@@ -350,9 +384,56 @@ export function activate(context: vscode.ExtensionContext) {
             );
           }
         } else {
-          vscode.window.showWarningMessage(
-            "Not authenticated. Please log in to use history features.",
+          const choice = await vscode.window.showWarningMessage(
+            "Not authenticated. Would you like to log in?",
+            "Login with VS Code Auth",
+            "Login with Browser",
+            "Manual Token Entry",
           );
+
+          if (choice === "Login with VS Code Auth") {
+            vscode.commands.executeCommand("conduit.login");
+          } else if (choice === "Login with Browser") {
+            const authUrl = apiService.getAuthUrl();
+            await vscode.env.openExternal(vscode.Uri.parse(authUrl));
+            vscode.window.showInformationMessage(
+              "Complete the login in your browser, then check status again.",
+            );
+          } else if (choice === "Manual Token Entry") {
+            vscode.commands.executeCommand("conduit.manualTokenEntry");
+          }
+        }
+      }),
+
+      // Manual token entry as fallback
+      vscode.commands.registerCommand("conduit.manualTokenEntry", async () => {
+        const token = await vscode.window.showInputBox({
+          prompt: "Enter your Conduit authentication token (JWT)",
+          placeHolder: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+          password: true,
+          validateInput: (value) => {
+            if (!value || value.trim().length === 0) {
+              return "Token cannot be empty";
+            }
+            if (!value.includes(".")) {
+              return "Please enter a valid JWT token";
+            }
+            return null;
+          },
+        });
+
+        if (token) {
+          try {
+            await apiService.authenticate(token);
+            const user = await apiService.getCurrentUser();
+            vscode.window.showInformationMessage(
+              `Successfully authenticated as ${user.displayName || user.username}!`,
+            );
+          } catch (error: any) {
+            vscode.window.showErrorMessage(
+              `Authentication failed: ${error.message || error}`,
+            );
+          }
         }
       }),
 
