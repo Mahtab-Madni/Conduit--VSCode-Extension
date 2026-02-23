@@ -532,7 +532,9 @@ export class PayloadPredictor {
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({})) as { error?: string };
+      const errorData = (await response.json().catch(() => ({}))) as {
+        error?: string;
+      };
       throw new Error(
         `Backend AI call failed: ${response.status} - ${errorData.error || response.statusText}`,
       );
