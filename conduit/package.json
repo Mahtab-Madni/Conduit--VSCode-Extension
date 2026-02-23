@@ -164,6 +164,11 @@
           "type": "string",
           "default": "http://localhost:3001",
           "description": "URL of the Conduit backend server for history and authentication features."
+        },
+        "conduit.groqApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Your Groq API key for AI-powered payload prediction. Get your key from https://console.groq.com/keys"
         }
       }
     }
