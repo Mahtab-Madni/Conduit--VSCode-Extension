@@ -1,0 +1,206 @@
+{
+  "name": "conduit",
+  "displayName": "Conduit",
+  "description": "Live interactive API playground inside VS Code",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.109.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:conduit.login",
+    "onCommand:conduit.openPanel",
+    "onUri:conduit"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "uriHandlers": [
+      {
+        "scheme": "conduit"
+      }
+    ],
+    "commands": [
+      {
+        "command": "conduit.openPanel",
+        "title": "Open Panel",
+        "category": "Conduit"
+      },
+      {
+        "command": "conduit.refreshRoutes",
+        "title": "Refresh Routes",
+        "category": "Conduit"
+      },
+      {
+        "command": "conduit.scanRoutes",
+        "title": "Scan Routes",
+        "category": "Conduit"
+      },
+      {
+        "command": "conduit.configureApiKey",
+        "title": "AI Features Status",
+        "category": "Conduit"
+      },
+      {
+        "command": "conduit.testMongoConnection",
+        "title": "Test MongoDB Connection",
+        "category": "Conduit"
+      },
+      {
+        "command": "conduit.configureMongoDB",
+        "title": "Configure MongoDB Connection",
+        "category": "Conduit"
+      },
+      {
+        "command": "conduit.viewCollectionSchema",
+        "title": "View Collection Schema",
+        "category": "Conduit"
+      },
+      {
+        "command": "conduit.login",
+        "title": "Login with GitHub",
+        "category": "Conduit"
+      },
+      {
+        "command": "conduit.logout",
+        "title": "Logout",
+        "category": "Conduit"
+      },
+      {
+        "command": "conduit.checkAuthStatus",
+        "title": "Check Authentication Status",
+        "category": "Conduit"
+      },
+      {
+        "command": "conduit.testUriHandler",
+        "title": "Test URI Handler (Debug)",
+        "category": "Conduit"
+      },
+      {
+        "command": "conduit.testManualUri",
+        "title": "Test Manual URI Handler (Debug)",
+        "category": "Conduit"
+      },
+      {
+        "command": "conduit.debugAuthStorage",
+        "title": "Debug Authentication Storage",
+        "category": "Conduit"
+      },
+      {
+        "command": "conduit.forceSnapshot",
+        "title": "Create Snapshot",
+        "category": "Conduit"
+      },
+      {
+        "command": "conduit.viewHistory",
+        "title": "View Route History",
+        "category": "Conduit"
+      },
+      {
+        "command": "conduit.toggleAutoSnapshot",
+        "title": "Toggle Auto-Snapshot",
+        "category": "Conduit"
+      }
+    ],
+    "configuration": {
+      "title": "Conduit",
+      "properties": {
+        "conduit.mongoUri": {
+          "type": "string",
+          "default": "mongodb://localhost:27017",
+          "description": "MongoDB connection URI. Change this if your MongoDB is running on a different host or port."
+        },
+        "conduit.mongoDatabase": {
+          "type": "string",
+          "default": "test",
+          "description": "Default MongoDB database name to use for real data fetching."
+        },
+        "conduit.mongoConnectionTimeout": {
+          "type": "number",
+          "default": 5000,
+          "description": "MongoDB connection timeout in milliseconds."
+        },
+        "conduit.preferRealData": {
+          "type": "boolean",
+          "default": true,
+          "description": "Prefer real data from MongoDB over AI-generated examples when available."
+        },
+        "conduit.enableHybridMode": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable hybrid mode that combines AI predictions with MongoDB real data."
+        },
+        "conduit.maxSampleDocuments": {
+          "type": "number",
+          "default": 3,
+          "description": "Maximum number of sample documents to fetch from MongoDB collections."
+        },
+        "conduit.snapshot.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable automatic route snapshots when files are saved."
+        },
+        "conduit.snapshot.debounceMs": {
+          "type": "number",
+          "default": 2000,
+          "description": "Debounce delay in milliseconds for creating snapshots after file changes."
+        },
+        "conduit.snapshot.maxSize": {
+          "type": "number",
+          "default": 1048576,
+          "description": "Maximum file size in bytes to process for snapshots (default: 1MB)."
+        },
+        "conduit.snapshot.excludePatterns": {
+          "type": "array",
+          "default": [
+            "**/node_modules/**",
+            "**/dist/**",
+            "**/build/**"
+          ],
+          "description": "Glob patterns for files to exclude from automatic snapshotting."
+        },
+        "conduit.backend.url": {
+          "type": "string",
+          "default": "http://localhost:3001",
+          "description": "URL of the Conduit backend server for history and authentication features."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "npm run check-types && npm run lint && node esbuild.js",
+    "watch": "npm-run-all -p watch:*",
+    "watch:esbuild": "node esbuild.js --watch",
+    "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
+    "package": "npm run check-types && npm run lint && node esbuild.js --production",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@babel/types": "^7.29.0",
+    "@types/babel__traverse": "^7.28.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^22.19.11",
+    "@types/vscode": "^1.109.0",
+    "@vscode/test-cli": "^0.0.12",
+    "@vscode/test-electron": "^2.5.2",
+    "esbuild": "^0.27.2",
+    "eslint": "^9.39.2",
+    "npm-run-all": "^4.1.5",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.54.0"
+  },
+  "dependencies": {
+    "@babel/parser": "^7.29.0",
+    "@babel/traverse": "^7.29.0",
+    "groq-sdk": "^0.37.0",
+    "mongodb": "^7.1.0",
+    "openai": "^6.22.0"
+  }
+}

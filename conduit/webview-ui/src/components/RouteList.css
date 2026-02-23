@@ -1,0 +1,215 @@
+.route-list {
+  height: 100%;
+  overflow-y: auto;
+  background-color: var(--vscode-sideBar-background, #252526);
+}
+
+.routes-header {
+  padding: 16px 16px 8px 16px;
+  border-bottom: 1px solid var(--vscode-panel-border, #2d2d30);
+}
+
+.routes-header h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--vscode-sideBarTitle-foreground, #cccccc);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: var(--vscode-descriptionForeground, #cccccc99);
+  text-align: center;
+}
+
+.loading-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--vscode-panel-border, #2d2d30);
+  border-top: 2px solid var(--vscode-button-background, #0e639c);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 12px;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.no-routes {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--vscode-descriptionForeground, #cccccc99);
+}
+
+.no-routes-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.no-routes h3 {
+  font-size: 16px;
+  margin: 0 0 8px 0;
+  color: var(--vscode-editor-foreground, #d4d4d4);
+}
+
+.no-routes p {
+  font-size: 13px;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.route-group {
+  border-bottom: 1px solid var(--vscode-panel-border, #2d2d30);
+}
+
+.group-header {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  cursor: pointer;
+  background-color: var(--vscode-sideBarSectionHeader-background, #2d2d30);
+  color: var(--vscode-sideBarSectionHeader-foreground, #cccccc);
+  font-weight: 600;
+  font-size: 13px;
+  user-select: none;
+  transition: background-color 0.2s;
+}
+
+.group-header:hover {
+  background-color: var(--vscode-list-hoverBackground, #37373d);
+}
+
+.group-toggle {
+  margin-right: 8px;
+  font-size: 10px;
+  transition: transform 0.2s;
+  color: var(--vscode-descriptionForeground, #cccccc99);
+}
+
+.group-toggle.collapsed {
+  transform: rotate(-90deg);
+}
+
+.group-toggle.expanded {
+  transform: rotate(0deg);
+}
+
+.group-name {
+  font-family: var(
+    --vscode-editor-font-family,
+    "SF Mono",
+    Monaco,
+    "Cascadia Code",
+    "Roboto Mono",
+    Consolas,
+    "Courier New",
+    monospace
+  );
+}
+
+.group-routes {
+  background-color: var(--vscode-sideBar-background, #252526);
+}
+
+.route-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px 8px 32px;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+  transition: all 0.2s;
+  min-height: 56px;
+}
+
+.route-item:hover {
+  background-color: var(--vscode-list-hoverBackground, #37373d);
+}
+
+.route-item.selected {
+  background-color: var(--vscode-list-activeSelectionBackground, #094771);
+  border-left-color: var(--vscode-button-background, #0e639c);
+}
+
+.route-method-badge {
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  color: white;
+  text-align: center;
+  min-width: 48px;
+  margin-right: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.route-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.route-path {
+  font-family: var(
+    --vscode-editor-font-family,
+    "SF Mono",
+    Monaco,
+    "Cascadia Code",
+    "Roboto Mono",
+    Consolas,
+    "Courier New",
+    monospace
+  );
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--vscode-editor-foreground, #d4d4d4);
+  margin-bottom: 4px;
+  word-break: break-all;
+}
+
+.route-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.route-handler,
+.route-file {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground, #cccccc99);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.route-handler {
+  font-weight: 500;
+}
+
+.route-file {
+  font-family: var(
+    --vscode-editor-font-family,
+    "SF Mono",
+    Monaco,
+    "Cascadia Code",
+    "Roboto Mono",
+    Consolas,
+    "Courier New",
+    monospace
+  );
+}

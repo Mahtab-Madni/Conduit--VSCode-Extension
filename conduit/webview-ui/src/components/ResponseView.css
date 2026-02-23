@@ -1,0 +1,316 @@
+.response-view {
+  margin-top: 24px;
+  border: 1px solid var(--vscode-panel-border, #2d2d30);
+  border-radius: 6px;
+  background-color: var(--vscode-editor-background, #1e1e1e);
+  overflow: hidden;
+}
+
+.response-view.loading-state {
+  background-color: var(--vscode-input-background, #3c3c3c);
+}
+
+.response-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background-color: var(--vscode-tab-activeBackground, #2d2d30);
+  border-bottom: 1px solid var(--vscode-panel-border, #2d2d30);
+}
+
+.response-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--vscode-editor-foreground, #d4d4d4);
+}
+
+.response-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.status-badge {
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(
+    --vscode-editor-font-family,
+    "SF Mono",
+    Monaco,
+    "Cascadia Code",
+    "Roboto Mono",
+    Consolas,
+    "Courier New",
+    monospace
+  );
+}
+
+.status-success {
+  background-color: rgba(40, 167, 69, 0.2);
+  color: #28a745;
+  border: 1px solid rgba(40, 167, 69, 0.3);
+}
+
+.status-warning {
+  background-color: rgba(255, 193, 7, 0.2);
+  color: #ffc107;
+  border: 1px solid rgba(255, 193, 7, 0.3);
+}
+
+.status-error {
+  background-color: rgba(220, 53, 69, 0.2);
+  color: #dc3545;
+  border: 1px solid rgba(220, 53, 69, 0.3);
+}
+
+.status-info {
+  background-color: rgba(0, 123, 255, 0.2);
+  color: #007bff;
+  border: 1px solid rgba(0, 123, 255, 0.3);
+}
+
+.response-time {
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground, #cccccc99);
+  font-family: var(
+    --vscode-editor-font-family,
+    "SF Mono",
+    Monaco,
+    "Cascadia Code",
+    "Roboto Mono",
+    Consolas,
+    "Courier New",
+    monospace
+  );
+}
+
+.loading-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px 20px;
+  color: var(--vscode-descriptionForeground, #cccccc99);
+}
+
+.loading-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--vscode-panel-border, #2d2d30);
+  border-top: 2px solid var(--vscode-button-background, #0e639c);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.response-content {
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.headers-section {
+  border-bottom: 1px solid var(--vscode-panel-border, #2d2d30);
+}
+
+.headers-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: none;
+  border: none;
+  color: var(--vscode-editor-foreground, #d4d4d4);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  transition: background-color 0.2s;
+}
+
+.headers-toggle:hover {
+  background-color: var(--vscode-list-hoverBackground, #37373d);
+}
+
+.toggle-icon {
+  font-size: 10px;
+  transition: transform 0.2s;
+  color: var(--vscode-descriptionForeground, #cccccc99);
+}
+
+.toggle-icon.collapsed {
+  transform: rotate(-90deg);
+}
+
+.toggle-icon.expanded {
+  transform: rotate(0deg);
+}
+
+.headers-content {
+  padding: 0 20px 16px 20px;
+}
+
+.headers-actions,
+.body-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
+.copy-button {
+  padding: 4px 12px;
+  background-color: var(--vscode-button-secondaryBackground, #5f6a79);
+  color: var(--vscode-button-secondaryForeground, #ffffff);
+  border: none;
+  border-radius: 3px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.copy-button:hover {
+  background-color: var(--vscode-button-secondaryHoverBackground, #6c7b8a);
+}
+
+.headers-text {
+  margin: 0;
+  padding: 12px;
+  background-color: var(--vscode-textCodeBlock-background, #0d1117);
+  border: 1px solid var(--vscode-panel-border, #2d2d30);
+  border-radius: 3px;
+  font-family: var(
+    --vscode-editor-font-family,
+    "SF Mono",
+    Monaco,
+    "Cascadia Code",
+    "Roboto Mono",
+    Consolas,
+    "Courier New",
+    monospace
+  );
+  font-size: 12px;
+  line-height: 1.4;
+  overflow-x: auto;
+}
+
+.header-line {
+  margin-bottom: 4px;
+}
+
+.header-key {
+  color: var(--vscode-symbolIcon-colorForeground, #4fc1ff);
+  font-weight: 500;
+}
+
+.header-value {
+  color: var(--vscode-editor-foreground, #d4d4d4);
+}
+
+.response-body {
+  padding: 20px;
+}
+
+.body-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.body-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--vscode-editor-foreground, #d4d4d4);
+}
+
+.response-data {
+  border: 1px solid var(--vscode-panel-border, #2d2d30);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.json-content {
+  margin: 0;
+  padding: 16px;
+  background-color: var(--vscode-textCodeBlock-background, #0d1117);
+  color: var(--vscode-editor-foreground, #d4d4d4);
+  font-family: var(
+    --vscode-editor-font-family,
+    "SF Mono",
+    Monaco,
+    "Cascadia Code",
+    "Roboto Mono",
+    Consolas,
+    "Courier New",
+    monospace
+  );
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.empty-response {
+  padding: 24px;
+  text-align: center;
+  color: var(--vscode-descriptionForeground, #cccccc99);
+  font-style: italic;
+  background-color: var(--vscode-input-background, #3c3c3c);
+}
+
+.error-section {
+  padding: 20px;
+  border-top: 1px solid var(--vscode-panel-border, #2d2d30);
+  background-color: rgba(220, 53, 69, 0.1);
+}
+
+.error-header {
+  margin-bottom: 12px;
+}
+
+.error-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: #dc3545;
+}
+
+.error-content {
+  border: 1px solid rgba(220, 53, 69, 0.3);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.error-text {
+  margin: 0;
+  padding: 16px;
+  background-color: rgba(220, 53, 69, 0.05);
+  color: #dc3545;
+  font-family: var(
+    --vscode-editor-font-family,
+    "SF Mono",
+    Monaco,
+    "Cascadia Code",
+    "Roboto Mono",
+    Consolas,
+    "Courier New",
+    monospace
+  );
+  font-size: 12px;
+  line-height: 1.4;
+  overflow-x: auto;
+}

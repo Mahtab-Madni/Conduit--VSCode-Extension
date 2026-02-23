@@ -1,0 +1,14 @@
+out
+dist
+node_modules
+.vscode-test/
+*.vsix
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# OS generated files
+.DS_Store
+Thumbs.db
