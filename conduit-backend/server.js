@@ -14,7 +14,7 @@ dotenv.config();
 const { connect, connection } = mongoose;
 const { verify, sign } = jwt;
 
-// Initialize Groq client
+
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
@@ -37,14 +37,14 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// More strict rate limiting for auth endpoints
+
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 5, // Limit auth attempts
   message: "Too many authentication attempts, please try again later.",
 });
 
-// Middleware
+
 app.use(
   cors({
     origin: process.env.CLIENT_URL || "http://localhost:3000",
@@ -55,12 +55,12 @@ app.use(json({ limit: "10mb" }));
 app.use(urlencoded({ extended: true }));
 app.use(passport.initialize());
 
-// MongoDB connection
-connect(process.env.MONGODB_URI || "mongodb://localhost:27017/conduit")
+
+connect(process.env.MONGODB_URI )
   .then(() => console.log("Connected to MongoDB"))
   .catch((err) => console.error("MongoDB connection error:", err));
 
-// Passport GitHub Strategy
+
 passport.use(
   new GitHubStrategy(
     {

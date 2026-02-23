@@ -7,12 +7,7 @@ import traverse, { NodePath } from "@babel/traverse";
 import {
   Node,
   FunctionDeclaration,
-  ArrowFunctionExpression,
-  FunctionExpression,
-  MemberExpression,
-  Identifier,
-  AssignmentExpression,
-  ObjectMethod,
+  MemberExpression
 } from "@babel/types";
 
 export interface ControllerContext {
@@ -53,13 +48,10 @@ export class PayloadPredictor {
   }
 
   async getGroqApiKey(): Promise<string | undefined> {
-    // AI features are now handled by the backend server
-    // Users don't need to provide their own API key
     return "backend-handled";
   }
 
   async predictBaseUrl(route: DetectedRoute): Promise<string> {
-    // Try to detect backend URL from various sources
     const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     if (!workspaceRoot) {
       return "http://localhost:3000"; // fallback
@@ -185,7 +177,7 @@ export class PayloadPredictor {
   // API key is now hardcoded, no configuration needed
   async configureApiKey(): Promise<void> {
     vscode.window.showInformationMessage(
-      "✅ API key is pre-configured! AI features are ready to use.",
+      "API key is pre-configured! AI features are ready to use.",
     );
   }
 
@@ -194,11 +186,11 @@ export class PayloadPredictor {
   ): Promise<ControllerContext | null> {
     // Try to find controller function in the same file as the route (original approach)
     console.log(
-      `🔍 Attempting to find controller "${route.handler}" in same file: ${route.filePath}`,
+      `Attempting to find controller "${route.handler}" in same file: ${route.filePath}`,
     );
     const sameFileContext = await this.tryExtractFromSameFile(route);
     if (sameFileContext) {
-      console.log(`✅ Found controller "${route.handler}" in same file`);
+      console.log(`Found controller "${route.handler}" in same file`);
       return sameFileContext;
     }
 
@@ -210,7 +202,7 @@ export class PayloadPredictor {
       const separateFileContext = await this.tryExtractFromSeparateFile(route);
       if (separateFileContext) {
         console.log(
-          `✅ Found controller "${route.controllerFunction}" in separate file`,
+          `Found controller "${route.controllerFunction}" in separate file`,
         );
         return separateFileContext;
       }
