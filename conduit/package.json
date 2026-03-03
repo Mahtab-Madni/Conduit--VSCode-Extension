@@ -165,7 +165,7 @@
         },
         "conduit.backend.url": {
           "type": "string",
-          "default": "http://localhost:3001",
+          "default": "http://localhost:3002",
           "description": "URL of the Conduit backend server for history and authentication features."
         }
       }

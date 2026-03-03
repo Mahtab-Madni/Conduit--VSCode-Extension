@@ -5,14 +5,28 @@ dotenv.config();
 
 const { connect, connection } = mongoose;
 
+// MongoDB connection options with Stable API
+const clientOptions = {
+  serverApi: {
+    version: "1",
+    strict: true,
+    deprecationErrors: true,
+  },
+};
+
 // Database connection function
 export const connectDB = async () => {
   try {
-    await connect(process.env.MONGODB_URI);
-    console.log("Connected to MongoDB");
+    await connect(process.env.MONGODB_URI, clientOptions);
+    // Ping the database to verify connection
+    await connection.db.admin().command({ ping: 1 });
+    console.log(
+      "Pinged your deployment. You successfully connected to MongoDB!",
+    );
   } catch (err) {
     console.error("MongoDB connection error:", err);
-    process.exit(1);
+    // Don't exit immediately, allow server to continue running
+    console.warn("Server is running without MongoDB connection");
   }
 };
 
