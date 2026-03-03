@@ -1,0 +1,132 @@
+/* AI Response Formatter Styles */
+.ai-response-formatter {
+  background: var(--vscode-editor-background, #1e1e1e);
+  border: 1px solid var(--vscode-editorWidget-border, #454545);
+  border-radius: 8px;
+  padding: 20px;
+  margin-top: 16px;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.6;
+  color: var(--vscode-editor-foreground, #d4d4d4);
+}
+
+/* Text Content Formatting */
+.formatted-content {
+  margin-bottom: 16px;
+}
+
+.formatted-content:last-child {
+  margin-bottom: 0;
+}
+
+/* Headers */
+.formatted-content h1 {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--vscode-foreground, #ffffff);
+  margin: 24px 0 16px 0;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--vscode-focusBorder, #007acc);
+}
+
+.formatted-content h2 {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--vscode-foreground, #ffffff);
+  margin: 20px 0 12px 0;
+  display: flex;
+  align-items: center;
+}
+
+.formatted-content h2::before {
+  content: "";
+  width: 4px;
+  height: 20px;
+  background: var(--vscode-focusBorder, #007acc);
+  margin-right: 12px;
+  border-radius: 2px;
+}
+
+.formatted-content h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--vscode-foreground, #ffffff);
+  margin: 16px 0 8px 0;
+}
+
+/* Strong and Emphasis */
+.formatted-content strong {
+  font-weight: 700;
+  color: var(--vscode-symbolIcon-keywordForeground, #4fc1ff);
+}
+
+.formatted-content em {
+  font-style: italic;
+  color: var(--vscode-symbolIcon-stringForeground, #ce9178);
+}
+
+/* Inline Code */
+.inline-code {
+  background: var(--vscode-textCodeBlock-background, #2d2d2d);
+  color: var(--vscode-symbolIcon-stringForeground, #ce9178);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: "Cascadia Code", "Fira Code", "SF Mono", Monaco, monospace;
+  font-size: 0.9em;
+  border: 1px solid var(--vscode-editorWidget-border, #454545);
+}
+
+/* Lists */
+.formatted-content li.bullet-list {
+  margin: 8px 0;
+  padding-left: 20px;
+  position: relative;
+  list-style: none;
+}
+
+.bullet-list::before {
+  content: "•";
+  color: var(--vscode-focusBorder, #007acc);
+  font-weight: bold;
+  position: absolute;
+  left: 0;
+}
+
+.formatted-content li.numbered-list {
+  margin: 8px 0;
+  padding-left: 20px;
+  position: relative;
+  list-style: none;
+  counter-increment: list-counter;
+}
+
+.numbered-list::before {
+  content: counter(list-counter) ".";
+  color: var(--vscode-focusBorder, #007acc);
+  font-weight: bold;
+  position: absolute;
+  left: 0;
+}
+
+/* JSON Code Blocks */
+.json-block {
+  background: var(--vscode-editor-background, #1e1e1e);
+  border: 1px solid var(--vscode-editorWidget-border, #454545);
+  border-radius: 8px;
+  margin: 16px 0;
+  overflow-x: auto;
+  position: relative;
+}
+
+.json-block code {
+  color: var(--vscode-editor-foreground, #d4d4d4);
+  display: block;
+  padding: 16px;
+  margin: 0;
+  font-family: "Cascadia Code", "Fira Code", "SF Mono", Monaco, monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  overflow-x: auto;
+  white-space: pre;
+}

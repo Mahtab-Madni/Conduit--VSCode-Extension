@@ -1,0 +1,124 @@
+/* JSON Editor Container */
+.json-editor-container {
+  position: relative;
+  width: 100%;
+  border: 2px solid var(--vscode-input-border, #3c3c3c);
+  border-radius: 6px;
+  background: var(--vscode-editor-background, #1e1e1e);
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.json-editor-container:focus-within {
+  border-color: var(--vscode-focusBorder, #007acc);
+  box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.2);
+}
+
+/* Syntax Highlighting Overlay */
+.json-syntax-highlight {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 16px;
+  margin: 0;
+  font-family: "Cascadia Code", "Fira Code", "SF Mono", Monaco, monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 1;
+  color: transparent;
+}
+
+/* Actual Textarea */
+.json-editor-textarea {
+  position: relative;
+  top: 0;
+  left: 0;
+  width: 100%;
+  padding: 16px;
+  margin: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--vscode-editorCursor-foreground, #aeafad);
+  font-family: "Cascadia Code", "Fira Code", "SF Mono", Monaco, monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  resize: vertical;
+  z-index: 2;
+  box-sizing: border-box;
+}
+
+.json-editor-textarea::placeholder {
+  color: var(--vscode-input-placeholderForeground, #6c6c6c);
+  font-style: italic;
+}
+
+.json-editor-textarea::selection {
+  background: var(--vscode-editor-selectionBackground, rgba(0, 122, 204, 0.3));
+}
+
+/* JSON Syntax Highlighting Colors - VS Code Dark Theme */
+.json-key {
+  color: #9cdcfe !important; /* Light blue for object keys */
+  font-weight: 400;
+}
+
+.json-string {
+  color: #ce9178 !important; /* Orange for string values */
+}
+
+.json-number {
+  color: #b5cea8 !important; /* Light green for numbers */
+}
+
+.json-boolean {
+  color: #569cd6 !important; /* Blue for true/false */
+  font-weight: 600;
+}
+
+.json-null {
+  color: #569cd6 !important; /* Blue for null */
+  font-weight: 600;
+}
+
+.json-punctuation {
+  color: #d4d4d4 !important; /* Default text color for commas and colons */
+}
+
+.json-bracket {
+  color: #ffd700 !important; /* Gold for brackets and braces */
+  font-weight: bold;
+}
+
+/* Headers Editor Specific */
+.headers-editor .json-editor-container {
+  min-height: 100px;
+}
+
+.headers-editor .json-syntax-highlight,
+.headers-editor .json-editor-textarea {
+  font-size: 13px;
+}
+
+/* Payload Editor Specific */
+.payload-editor .json-editor-container {
+  min-height: 240px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .json-syntax-highlight,
+  .json-editor-textarea {
+    font-size: 13px;
+    padding: 12px;
+  }
+}
