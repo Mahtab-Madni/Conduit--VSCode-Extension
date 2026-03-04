@@ -93,7 +93,7 @@ process.on("SIGTERM", async () => {
 app.listen(PORT, () => {
   console.log(`Conduit Backend running on port ${PORT}`);
   console.log(
-    `MongoDB URI: ${process.env.MONGODB_URI || "mongodb://localhost:27017/conduit"}`,
+    `MongoDB URI: ${process.env.MONGODB_URI}`,
   );
 });
 

@@ -1,7 +1,12 @@
 import mongoose from "mongoose";
 import dotenv from "dotenv";
+import dns from "dns";
 
 dotenv.config();
+
+// Force DNS to use IPv4 and system resolver
+dns.setDefaultResultOrder("ipv4first");
+dns.setServers(["8.8.8.8", "8.8.4.4", "1.1.1.1"]); // Use Google & Cloudflare DNS
 
 const { connect, connection } = mongoose;
 
@@ -12,6 +17,10 @@ const clientOptions = {
     strict: true,
     deprecationErrors: true,
   },
+  // DNS resolution options for Windows compatibility
+  family: 4, // Force IPv4
+  serverSelectionTimeoutMS: 10000,
+  socketTimeoutMS: 45000,
 };
 
 // Database connection function
