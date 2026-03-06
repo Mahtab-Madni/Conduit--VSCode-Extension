@@ -181,9 +181,8 @@ export class RouteDetector {
     node: VariableDeclarator,
     currentFilePath: string,
   ): void {
-    // Handle require statements like: const userController = require('./controllers/userController')
+    // Check if this is a require() call
     if (
-      node.id.type === "Identifier" &&
       node.init?.type === "CallExpression" &&
       node.init.callee.type === "Identifier" &&
       node.init.callee.name === "require" &&
@@ -196,8 +195,35 @@ export class RouteDetector {
         currentFilePath,
       );
 
-      if (resolvedPath) {
+      if (!resolvedPath) {
+        return;
+      }
+
+      // Handle simple require: const userController = require('./controllers/userController')
+      if (node.id.type === "Identifier") {
         this.controllerImports.set(node.id.name, resolvedPath);
+      }
+      // Handle destructured require: const { getAllUsers, getUserById } = require('./controllers/userController')
+      else if (node.id.type === "ObjectPattern") {
+        node.id.properties.forEach((prop) => {
+          if (prop.type === "ObjectProperty") {
+            // Handle both shorthand and explicit destructuring
+            const key = prop.key.type === "Identifier" ? prop.key.name : null;
+            const value =
+              prop.value.type === "Identifier" ? prop.value.name : null;
+
+            if (value) {
+              // Map the local name to the controller file path
+              this.functionImports.set(value, resolvedPath);
+            }
+          } else if (
+            prop.type === "RestElement" &&
+            prop.argument.type === "Identifier"
+          ) {
+            // Handle rest element: const { ...rest } = require('./controller')
+            this.controllerImports.set(prop.argument.name, resolvedPath);
+          }
+        });
       }
     }
   }

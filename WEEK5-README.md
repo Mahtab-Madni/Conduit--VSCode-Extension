@@ -346,4 +346,133 @@ conduit/
 
 ---
 
+## 🤖 Enhanced AI Error Fix Suggestions
+
+### Improvement Overview
+
+The AI error suggestion system has been significantly enhanced to provide **detailed, actionable, and properly formatted fixes** for API request failures.
+
+### What Changed
+
+#### 1. **Detailed Request-Response Analysis**
+
+The `suggestErrorFix` endpoint now receives complete context:
+
+- **Actual request body** - What was sent
+- **API endpoint** - Where the request went
+- **HTTP method** - POST, PUT, PATCH, etc.
+- **Error response** - What went wrong
+- **Controller code** - How the endpoint works
+
+#### 2. **AI Prompt Enhancement**
+
+The AI now follows a structured analysis framework:
+
+```
+1. WHAT'S WRONG       → Identify the specific conflict
+2. ROOT CAUSE        → Explain why validation failed
+3. CORRECT FORMAT    → Show the exact format needed
+4. STEP-BY-STEP FIXES → Numbered actionable steps
+5. BEFORE & AFTER    → Visual comparison
+6. VALIDATION        → How the fix satisfies requirements
+```
+
+#### 3. **Professional Formatting**
+
+New `AiResponseFormatter` component displays suggestions with:
+
+- **Markdown-style headers** for organization
+- **Bold text** for emphasis (`**text**`)
+- **Inline code** for field names (`` `fieldName` ``)
+- **Code blocks** for JSON examples
+- **Bullet points** for lists
+- **Proper spacing** for readability
+
+### Example: Conflicting Field Error
+
+**Problem Request:**
+
+```json
+{
+  "address": { "street": "123 Admin Street", "city": "Mumbai" },
+  "address.street": "123 Admin Street",
+  "address.city": "Mumbai"
+}
+```
+
+**Old Suggestion:** ❌
+
+```
+Validation failed on address field. Use correct format.
+```
+
+**New Suggestion:** ✅
+
+```
+## WHAT'S WRONG
+
+Your request sends address data in TWO conflicting formats:
+- Nested: "address": { "street": "..." }
+- Flattened: "address.street": "..."
+
+## ROOT CAUSE
+
+Validation libraries treat "address" as a single object.
+Using dotted keys (address.street) creates unexpected duplicate properties.
+
+## CORRECT FORMAT
+
+Choose ONE format and use consistently:
+
+**Option A - Nested (Recommended):**
+{ "address": { "street": "...", "city": "..." } }
+
+**Option B - Flattened:**
+{ "address.street": "...", "address.city": "..." }
+
+## STEP-BY-STEP FIXES
+
+1. **Decide on format** - Nested is cleaner
+2. **Remove conflicting keys** - Delete the flattened version
+3. **Verify structure** - Use only nested format
+4. **Test request** - Send with correct format
+
+## VALIDATION
+
+This payload satisfies:
+- ✓ No duplicate fields
+- ✓ Clear nested structure
+- ✓ Schema validation passes
+```
+
+### How to Use
+
+1. Send a request that returns an error (4xx or 5xx)
+2. Click **"Get AI Suggestion"** button
+3. View detailed analysis with:
+   - What exactly went wrong
+   - Why the validation failed
+   - Exact steps to fix it
+   - Correct format examples
+
+### Files Modified
+
+- `conduit-backend/controllers/AiController.js` - Enhanced AI analysis
+- `conduit/src/ai/payloadPredictor.ts` - Complete request context
+- `conduit/webview-ui/src/components/Playground.jsx` - Updated display
+- `conduit/webview-ui/src/components/AiResponseFormatter.jsx` - New formatter
+- `conduit/webview-ui/src/components/AiResponseFormatter.css` - Styling
+
+### Benefits
+
+| Aspect         | Before         | After                  |
+| -------------- | -------------- | ---------------------- |
+| Completeness   | Brief, generic | Detailed, specific     |
+| Context        | Error only     | Request + Error + Code |
+| Format         | Plain text     | Markdown with headers  |
+| Actionability  | Vague hints    | Step-by-step fixes     |
+| Visual Quality | Hard to read   | Well-formatted         |
+
+---
+
 **Happy Time Traveling! 🕰️** Use Conduit to never lose track of your API evolution again.

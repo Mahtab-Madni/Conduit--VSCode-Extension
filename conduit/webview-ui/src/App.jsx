@@ -152,18 +152,19 @@ function App() {
     }
   };
 
-  const handleLogin = () => {
-    if (vscode) {
-      vscode.postMessage({ command: "login" });
-    }
-  };
-
   const handleLogout = () => {
     if (vscode) {
       vscode.postMessage({ command: "logout" });
     }
+    // Immediately update UI
     setIsAuthenticated(false);
     setUser(null);
+  };
+
+  const handleLogin = () => {
+    if (vscode) {
+      vscode.postMessage({ command: "login" });
+    }
   };
 
   const handleSnapshotSelect = (snapshot) => {
@@ -220,10 +221,10 @@ function App() {
           >
             📅 History
           </button>
-          {isAuthenticated ? (
+          {isAuthenticated && user ? (
             <div className="auth-info">
               <span className="user-name">
-                {user?.displayName || user?.username}
+                {user.displayName || user.username || "User"}
               </span>
               <button className="logout-btn" onClick={handleLogout}>
                 Logout

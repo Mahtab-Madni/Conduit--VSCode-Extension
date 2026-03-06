@@ -73,18 +73,17 @@ export class HybridPayloadGenerator {
       const mongoConnector = getMongoConnector();
       const hasMongoConnection = mongoConnector.isAvailable();
 
-      // Start both AI and MongoDB analysis in parallel
-      const [aiPredictionPromise, mongoDataPromise] = [
-        this.getAIPrediction(route, options),
-        hasMongoConnection
-          ? this.getMongoData(route, options)
-          : Promise.resolve(null),
-      ];
+      // Fetch MongoDB data first so we can pass it to AI prediction
+      const mongoData = hasMongoConnection
+        ? await this.getMongoData(route, options)
+        : null;
 
-      const [aiPrediction, mongoData] = await Promise.all([
-        aiPredictionPromise,
-        mongoDataPromise,
-      ]);
+      // Now get AI prediction with MongoDB data
+      const aiPrediction = await this.getAIPrediction(
+        route,
+        options,
+        mongoData,
+      );
 
       // Determine the best approach based on available data
       const recommendedApproach = this.determineRecommendedApproach(
@@ -147,18 +146,23 @@ export class HybridPayloadGenerator {
    * Get AI prediction for the route
    * @param route Detected route
    * @param options Generation options
+   * @param mongoData Optional MongoDB data to provide real examples
    * @returns AI payload prediction or null
    */
   private async getAIPrediction(
     route: DetectedRoute,
     options: PayloadGenerationOptions,
+    mongoData: { primary: any; schema: any } | null = null,
   ): Promise<PayloadPrediction | null> {
     if (!options.useAIFallback && !options.preferRealData) {
       return null;
     }
 
     try {
-      return await this.payloadPredictor.predict(route);
+      // Extract sample documents to pass to AI if available
+      const sampleDocuments =
+        mongoData?.primary?.samples?.map((s: any) => s.data) || [];
+      return await this.payloadPredictor.predict(route, sampleDocuments);
     } catch (error) {
       console.warn("[HybridPayloadGenerator] AI prediction failed:", error);
       return null;

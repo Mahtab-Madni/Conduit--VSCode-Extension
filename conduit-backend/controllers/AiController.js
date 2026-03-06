@@ -4,10 +4,6 @@ const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
 
-/**
- * Predict payload based on route information
- * POST /api/ai/predict-payload
- */
 export const predictions = async (req, res) => {
   console.log(
     "[AI] Received payload prediction request from:",
@@ -22,30 +18,53 @@ export const predictions = async (req, res) => {
       return res.status(400).json({ error: "Route information is required" });
     }
 
-    // Build prompt for Groq
-    let prompt = `Based on this API route information, generate a realistic JSON payload:\n\n`;
+    // Build prompt for Groq - PRIORITIZE CONTROLLER CODE
+    let prompt = `Generate a JSON payload for this API endpoint based on the ACTUAL controller code.\n\n`;
     prompt += `Route: ${routeInfo.method} ${routeInfo.path}\n`;
 
+    // PRIORITY 1: Use controller code and extracted fields
+    if (routeInfo.reqBodyFields && routeInfo.reqBodyFields.length > 0) {
+      prompt += `\n⚠️ IMPORTANT - The controller expects EXACTLY these fields from req.body:\n`;
+      prompt += `${JSON.stringify(routeInfo.reqBodyFields)}\n`;
+      prompt += `\nYou MUST generate a payload with ONLY these fields. Do not add extra fields.\n`;
+    }
+
+    if (routeInfo.controllerCode) {
+      prompt += `\nController implementation:\n\`\`\`javascript\n${routeInfo.controllerCode}\n\`\`\`\n`;
+      prompt += `\nAnalyze this code to understand what fields are required and their expected format.\n`;
+    }
+
+    // PRIORITY 2: Use MongoDB data to provide realistic values for the required fields
+    if (mongoData && mongoData.length > 0) {
+      prompt += `\nReal data from MongoDB (use these as example values for the fields above):\n${JSON.stringify(mongoData, null, 2)}\n`;
+    }
+
     if (routeInfo.description) {
-      prompt += `Description: ${routeInfo.description}\n`;
+      prompt += `\nDescription: ${routeInfo.description}\n`;
     }
 
     if (routeInfo.parameters && routeInfo.parameters.length > 0) {
       prompt += `Parameters: ${JSON.stringify(routeInfo.parameters, null, 2)}\n`;
     }
 
-    if (mongoData && mongoData.length > 0) {
-      prompt += `\nExample data from MongoDB:\n${JSON.stringify(mongoData, null, 2)}\n`;
-    }
-
-    prompt += `\nGenerate a realistic JSON payload for this ${routeInfo.method} request. Only respond with valid JSON, no explanations.`;
+    prompt += `\n📋 INSTRUCTIONS:\n`;
+    prompt += `1. Use ONLY the fields extracted from the controller code (reqBodyFields)\n`;
+    prompt += `2. If MongoDB data is provided, use realistic values from that data\n`;
+    prompt += `3. If no MongoDB data, generate realistic example values\n`;
+    prompt += `4. Do NOT add fields like "confirmPassword", "firstName", "lastName", "phone", "address", "agreeToTerms", "captchaToken" unless they appear in reqBodyFields\n`;
+    prompt += `5. Keep the payload minimal and match exactly what the controller expects\n`;
+    prompt += `\nRespond with ONLY valid JSON, no explanations.`;
 
     const completion = await groq.chat.completions.create({
       messages: [
         {
           role: "system",
           content:
-            "You are an API payload expert. Generate realistic JSON payloads based on route information. Only respond with valid JSON.",
+            "You are an API payload expert. Generate JSON payloads that EXACTLY match what the controller code expects. " +
+            "If reqBodyFields are provided, use ONLY those fields. " +
+            "If MongoDB data is provided, use realistic values from that data. " +
+            "Never add extra fields that aren't in the controller code. " +
+            "Only respond with valid JSON, no explanations or extra text.",
         },
         {
           role: "user",
@@ -94,37 +113,112 @@ export const predictions = async (req, res) => {
   }
 };
 
-/**
- * Suggest error fix based on error message
- * POST /api/ai/suggest-error-fix
- */
 export const suggestErrorFix = async (req, res) => {
   try {
-    const { errorMessage, code, context } = req.body;
+    const {
+      errorMessage, // The HTTP error response (can be string or object)
+      requestBody, // The actual payload sent
+      requestUrl, // The API endpoint that was called
+      requestMethod = "POST", // HTTP method
+      expectedSchema, // What the API expects
+      code, // Optional: controller code
+      context, // Optional: additional context
+    } = req.body;
 
     if (!errorMessage) {
       return res.status(400).json({ error: "Error message is required" });
     }
 
-    let prompt = `You are a helpful developer assistant. Analyze this error and suggest fixes:\n\n`;
-    prompt += `Error: ${errorMessage}\n`;
+    // Parse error response - handle both string and structured object formats
+    let errorMessageText = "";
+    let errorFields = [];
+
+    if (typeof errorMessage === "string") {
+      errorMessageText = errorMessage;
+    } else if (typeof errorMessage === "object") {
+      // Handle structured error response
+      if (errorMessage.message) {
+        errorMessageText = errorMessage.message;
+      }
+      if (errorMessage.error) {
+        errorMessageText = errorMessage.error;
+      }
+      // Extract field-level errors
+      if (errorMessage.errors && Array.isArray(errorMessage.errors)) {
+        errorFields = errorMessage.errors.map(
+          (err) => `${err.field}: ${err.message}`,
+        );
+      }
+    } else {
+      errorMessageText = JSON.stringify(errorMessage);
+    }
+
+    // Build a focused prompt for concise correction
+    let prompt = `You are an API debugging assistant. Provide a BRIEF, PRACTICAL fix for this request error.\n\n`;
+
+    prompt += `=== REQUEST INFORMATION ===\n`;
+    prompt += `URL: ${requestUrl || "Unknown"}\n`;
+    prompt += `Method: ${requestMethod}\n`;
+
+    if (requestBody) {
+      prompt += `\nRequest Body Sent:\n\`\`\`json\n${JSON.stringify(requestBody, null, 2)}\n\`\`\`\n`;
+    }
+
+    prompt += `\n=== ERROR RESPONSE ===\n`;
+    prompt += `${errorMessageText}\n`;
+
+    // Add field-level errors if available
+    if (errorFields && errorFields.length > 0) {
+      prompt += `\nField Errors:\n`;
+      errorFields.forEach((field) => {
+        prompt += `- ${field}\n`;
+      });
+    }
+
+    if (expectedSchema) {
+      prompt += `\n=== EXPECTED SCHEMA ===\n`;
+      prompt += `${typeof expectedSchema === "string" ? expectedSchema : JSON.stringify(expectedSchema, null, 2)}\n`;
+    }
 
     if (code) {
-      prompt += `\nCode:\n${code}\n`;
+      prompt += `\n=== CONTROLLER CODE ===\n\`\`\`javascript\n${code}\n\`\`\`\n`;
     }
 
     if (context) {
       prompt += `\nContext: ${context}\n`;
     }
 
-    prompt += `\nProvide a brief, actionable suggestion to fix this error.`;
+    prompt += `\n=== TASK ===
+ANALYZE THE REQUEST:
+1. Look at the "Field Errors" section - these are the SPECIFIC fields that failed validation
+2. Compare each failing field against the "Request Body Sent" - identify if the field is MISSING or has WRONG VALUE
+3. Include ALL fields from the request body in your corrected version, plus add any MISSING fields
+
+OUTPUT ONLY 2 SECTIONS:
+
+1. **PROBLEM SUMMARY** (3-4 lines): 
+   - Which field(s) are missing or have wrong values
+   - Why the validation failed
+   
+2. **CORRECTED REQUEST BODY** (complete valid JSON):
+   - Include ALL original fields
+   - Add any missing required fields with example values
+   - Fix any incorrect values based on the validation errors
+
+Be precise about MISSING vs WRONG VALUE.`;
 
     const completion = await groq.chat.completions.create({
       messages: [
         {
           role: "system",
           content:
-            "You are a helpful developer assistant who provides clear, actionable solutions to coding problems.",
+            "You are an API debugging expert. Your job is to identify MISSING fields vs WRONG values. " +
+            "When you see field errors, check if those fields exist in the request body. " +
+            "If missing, the corrected body must include them. If wrong values, show correct values. " +
+            "Always provide the complete corrected JSON payload with ALL fields. " +
+            "BE EXPLICIT: say 'field X is MISSING' or 'field Y has WRONG VALUE'. " +
+            "Output ONLY: Problem Summary (3-4 lines) + Corrected Request Body (JSON). " +
+            "No extra text, no explanations beyond the summary.",
         },
         {
           role: "user",
@@ -132,8 +226,8 @@ export const suggestErrorFix = async (req, res) => {
         },
       ],
       model: "openai/gpt-oss-120b",
-      temperature: 0.5,
-      max_tokens: 500,
+      temperature: 0.2,
+      max_tokens: 800,
     });
 
     const suggestion = completion.choices[0]?.message?.content;
@@ -147,6 +241,7 @@ export const suggestErrorFix = async (req, res) => {
       suggestion,
       metadata: {
         model: "openai/gpt-oss-120b",
+        analysisType: "detailed_request_response_analysis",
       },
     });
   } catch (error) {

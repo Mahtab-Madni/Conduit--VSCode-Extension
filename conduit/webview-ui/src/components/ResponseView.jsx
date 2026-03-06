@@ -3,6 +3,7 @@ import "./ResponseView.css";
 
 const ResponseView = ({ response, isLoading }) => {
   const [showHeaders, setShowHeaders] = useState(false);
+  const [copiedText, setCopiedText] = useState(null);
 
   const getStatusClass = (status) => {
     if (!status) return "";
@@ -28,9 +29,12 @@ const ResponseView = ({ response, isLoading }) => {
     }
   };
 
-  const copyToClipboard = (text) => {
+  const copyToClipboard = (text, identifier = "default") => {
     navigator.clipboard.writeText(text).then(() => {
-      // Could add a toast notification here
+      setCopiedText(identifier);
+      setTimeout(() => {
+        setCopiedText(null);
+      }, 2000);
     });
   };
 
@@ -90,10 +94,13 @@ const ResponseView = ({ response, isLoading }) => {
                   <button
                     className="copy-button"
                     onClick={() =>
-                      copyToClipboard(JSON.stringify(response.headers, null, 2))
+                      copyToClipboard(
+                        JSON.stringify(response.headers, null, 2),
+                        "headers",
+                      )
                     }
                   >
-                    Copy
+                    {copiedText === "headers" ? "✓ Copied!" : "Copy"}
                   </button>
                 </div>
                 <pre className="headers-text">
@@ -116,9 +123,11 @@ const ResponseView = ({ response, isLoading }) => {
             <div className="body-actions">
               <button
                 className="copy-button"
-                onClick={() => copyToClipboard(formatJson(response.data))}
+                onClick={() =>
+                  copyToClipboard(formatJson(response.data), "body")
+                }
               >
-                Copy
+                {copiedText === "body" ? "✓ Copied!" : "Copy"}
               </button>
             </div>
           </div>

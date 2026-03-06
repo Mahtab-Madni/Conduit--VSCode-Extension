@@ -276,9 +276,21 @@ export class ConduitPanel {
         route: route,
       });
 
-      // Use hybrid prediction (AI + MongoDB)
-      const hybridPrediction =
-        await this._hybridPayloadGenerator.generateHybridPrediction(route);
+      // Check if hybrid mode is enabled in settings
+      const config = vscode.workspace.getConfiguration("conduit");
+      const enableHybridMode = config.get<boolean>("enableHybridMode", true);
+
+      // Use hybrid prediction (AI + MongoDB) if enabled, otherwise AI-only
+      let hybridPrediction;
+      if (enableHybridMode) {
+        // Hybrid mode: Controller code + MongoDB real data → AI
+        hybridPrediction =
+          await this._hybridPayloadGenerator.generateHybridPrediction(route);
+      } else {
+        // AI-only mode: Controller code only → AI (no MongoDB data)
+        // This still extracts controller fields and uses them for accurate prediction
+        hybridPrediction = null; // Will trigger AI-only fallback below
+      }
 
       if (hybridPrediction) {
         // Check if auth is required
@@ -329,8 +341,9 @@ export class ConduitPanel {
           },
         });
       } else {
-        // Fallback to AI-only prediction
+        // Fallback to AI-only prediction (controller code without MongoDB data)
         const aiPrediction = await this._payloadPredictor.predict(route);
+        // Note: No MongoDB data passed, so AI uses only controller code
 
         if (aiPrediction) {
           const requiresAuth =
@@ -438,14 +451,12 @@ export class ConduitPanel {
         route: route,
       });
 
-      // TODO: Implement error suggestion feature
-      // const suggestion = await this._payloadPredictor.suggestErrorFix(
-      //   route,
-      //   errorResponse,
-      //   requestPayload,
-      //   statusCode,
-      // );
-      const suggestion = null; // Temporarily disabled
+      const suggestion = await this._payloadPredictor.suggestErrorFix(
+        route,
+        errorResponse,
+        requestPayload,
+        statusCode,
+      );
 
       if (suggestion) {
         // Send suggestion back to webview
@@ -752,7 +763,7 @@ export class ConduitPanel {
     try {
       if (!this._apiService.isAuthenticated()) {
         this._panel.webview.postMessage({
-          type: "routeHistoryResponse",
+          command: "routeHistoryResponse",
           success: false,
           error: "Authentication required",
         });
@@ -762,14 +773,14 @@ export class ConduitPanel {
       const snapshots = await this._apiService.getRouteHistory(routeId, limit);
 
       this._panel.webview.postMessage({
-        type: "routeHistoryResponse",
+        command: "routeHistoryResponse",
         success: true,
         data: snapshots,
       });
     } catch (error) {
       console.error("Error fetching route history:", error);
       this._panel.webview.postMessage({
-        type: "routeHistoryResponse",
+        command: "routeHistoryResponse",
         success: false,
         error: error instanceof Error ? error.message : String(error),
       });

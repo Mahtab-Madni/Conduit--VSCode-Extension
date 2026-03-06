@@ -1,5 +1,9 @@
 import { MongoClient, Db, Collection, Document, ObjectId } from "mongodb";
 import * as vscode from "vscode";
+import dns from "dns";
+
+dns.setDefaultResultOrder("ipv4first");
+dns.setServers(["8.8.8.8", "8.8.4.4", "1.1.1.1"]);
 
 export interface MongoConnectionConfig {
   uri: string;
@@ -58,9 +62,16 @@ export class MongoConnector {
       );
 
       this.client = new MongoClient(this.connectionConfig.uri, {
+        serverApi: {
+          version: "1",
+          strict: true,
+          deprecationErrors: true,
+        },
+        // DNS resolution options for Windows compatibility
+        family: 4, // Force IPv4
+        serverSelectionTimeoutMS: 10000,
+        socketTimeoutMS: 45000,
         connectTimeoutMS: this.connectionConfig.connectionTimeout,
-        serverSelectionTimeoutMS: this.connectionConfig.connectionTimeout,
-        socketTimeoutMS: this.connectionConfig.connectionTimeout,
       });
 
       await this.client.connect();

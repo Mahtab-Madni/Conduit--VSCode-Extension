@@ -18,6 +18,8 @@ export class SnapshotService {
   private apiService: ConduitApiService;
   private routeDetector: RouteDetector;
   private payloadPredictor: PayloadPredictor;
+  // Temporary global pause switch for snapshot feature.
+  private readonly snapshotsPaused = false;
   private snapshotTimeouts = new Map<string, NodeJS.Timeout>();
   private lastSnapshots = new Map<string, string>(); // routeId -> codeHash
 
@@ -89,6 +91,10 @@ export class SnapshotService {
   }
 
   private async handleFileChange(uri: vscode.Uri): Promise<void> {
+    if (this.snapshotsPaused) {
+      return;
+    }
+
     if (!this.shouldProcessFile(uri)) {
       return;
     }
@@ -117,6 +123,15 @@ export class SnapshotService {
   private async handleActiveEditorChange(
     document: vscode.TextDocument,
   ): Promise<void> {
+    if (this.snapshotsPaused) {
+      return;
+    }
+
+    const config = this.getConfig();
+    if (!config.enabled) {
+      return;
+    }
+
     // Create snapshots for the currently active file (without debounce)
     if (
       this.shouldProcessFile(document.uri) &&
@@ -129,6 +144,15 @@ export class SnapshotService {
   private async handleDocumentSave(
     document: vscode.TextDocument,
   ): Promise<void> {
+    if (this.snapshotsPaused) {
+      return;
+    }
+
+    const config = this.getConfig();
+    if (!config.enabled) {
+      return;
+    }
+
     // Immediate snapshot on save (priority)
     if (
       this.shouldProcessFile(document.uri) &&
@@ -171,6 +195,10 @@ export class SnapshotService {
     uri: vscode.Uri,
     force: boolean = false,
   ): Promise<void> {
+    if (this.snapshotsPaused) {
+      return;
+    }
+
     try {
       const filePath = uri.fsPath;
       const fileContent = fs.readFileSync(filePath, "utf8");
@@ -306,6 +334,13 @@ export class SnapshotService {
   }
 
   public async forceSnapshotCurrentFile(): Promise<void> {
+    if (this.snapshotsPaused) {
+      vscode.window.showInformationMessage(
+        "Snapshot feature is temporarily paused.",
+      );
+      return;
+    }
+
     const editor = vscode.window.activeTextEditor;
     if (!editor || !this.apiService.isAuthenticated()) {
       vscode.window.showWarningMessage(

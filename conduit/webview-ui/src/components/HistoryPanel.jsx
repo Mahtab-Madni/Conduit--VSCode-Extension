@@ -14,6 +14,17 @@ const HistoryPanel = ({
   const [selectedSnapshots, setSelectedSnapshots] = useState(new Set());
   const [viewMode, setViewMode] = useState("timeline"); // 'timeline' or 'diff'
 
+  // Debug logging
+  useEffect(() => {
+    console.log("[HistoryPanel] Component mounted/updated", {
+      isAuthenticated,
+      selectedRoute: selectedRoute?.path,
+      loading,
+      snapshotsCount: snapshots.length,
+      error,
+    });
+  }, [isAuthenticated, selectedRoute, loading, snapshots, error]);
+
   // Fetch snapshots when route changes
   useEffect(() => {
     if (selectedRoute && isAuthenticated) {
@@ -22,11 +33,15 @@ const HistoryPanel = ({
       setSnapshots([]);
       setSelectedSnapshots(new Set());
     }
-  }, [selectedRoute, isAuthenticated, fetchSnapshots]);
+  }, [selectedRoute, isAuthenticated]);
 
-  const fetchSnapshots = useCallback(async () => {
+  const fetchSnapshots = useCallback(() => {
     if (!selectedRoute) return;
 
+    console.log(
+      "[HistoryPanel] fetchSnapshots called for route:",
+      selectedRoute.path,
+    );
     setLoading(true);
     setError(null);
 
@@ -37,16 +52,20 @@ const HistoryPanel = ({
         selectedRoute.filePath,
       );
 
+      console.log(
+        "[HistoryPanel] Sending getRouteHistory message with routeId:",
+        routeId,
+      );
+
       // Send message to extension to fetch snapshots
       window.vscode.postMessage({
-        type: "getRouteHistory",
+        command: "getRouteHistory",
         routeId: routeId,
         limit: 50,
       });
     } catch (err) {
       setError("Failed to fetch route history");
       console.error("Error fetching snapshots:", err);
-    } finally {
       setLoading(false);
     }
   }, [selectedRoute]);
@@ -68,9 +87,15 @@ const HistoryPanel = ({
   useEffect(() => {
     const handleMessage = (event) => {
       const message = event.data;
+      console.log("[HistoryPanel] Message received:", message);
 
-      switch (message.type) {
+      switch (message.command) {
         case "routeHistoryResponse":
+          console.log("[HistoryPanel] Route history response:", {
+            success: message.success,
+            dataLength: message.data?.length,
+            error: message.error,
+          });
           if (message.success) {
             setSnapshots(message.data || []);
           } else {
@@ -85,6 +110,7 @@ const HistoryPanel = ({
     };
 
     window.addEventListener("message", handleMessage);
+    console.log("[HistoryPanel] Message listener registered");
     return () => window.removeEventListener("message", handleMessage);
   }, []);
 

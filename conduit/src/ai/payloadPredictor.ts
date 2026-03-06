@@ -4,11 +4,7 @@ import * as path from "path";
 import { DetectedRoute } from "../routeDetection";
 import { parse } from "@babel/parser";
 import traverse, { NodePath } from "@babel/traverse";
-import {
-  Node,
-  FunctionDeclaration,
-  MemberExpression
-} from "@babel/types";
+import { Node, FunctionDeclaration, MemberExpression } from "@babel/types";
 
 export interface ControllerContext {
   route: DetectedRoute;
@@ -412,7 +408,10 @@ export class PayloadPredictor {
     }
   }
 
-  async predict(route: DetectedRoute): Promise<PayloadPrediction | null> {
+  async predict(
+    route: DetectedRoute,
+    mongoData?: any[],
+  ): Promise<PayloadPrediction | null> {
     const context = await this.extractControllerContext(route);
     if (!context) {
       const controllerInfo = route.controllerFilePath
@@ -445,7 +444,7 @@ export class PayloadPredictor {
     }
 
     try {
-      const response = await this.callBackendAI(context);
+      const response = await this.callBackendAI(context, mongoData);
       return this.parseBackendResponse(response);
     } catch (error) {
       console.error("Error calling AI backend:", error);
@@ -502,7 +501,10 @@ export class PayloadPredictor {
     );
   }
 
-  private async callBackendAI(context: ControllerContext): Promise<any> {
+  private async callBackendAI(
+    context: ControllerContext,
+    mongoData?: any[],
+  ): Promise<any> {
     const config = vscode.workspace.getConfiguration("conduit");
     const backendUrl =
       config.get<string>("backend.url") || "http://localhost:3002";
@@ -515,12 +517,19 @@ export class PayloadPredictor {
       controllerCode: context.controllerCode,
     };
 
+    const requestBody: any = { routeInfo };
+
+    // Include MongoDB data if available
+    if (mongoData && mongoData.length > 0) {
+      requestBody.mongoData = mongoData;
+    }
+
     const response = await fetch(`${backendUrl}/api/ai/predict-payload`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ routeInfo }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
@@ -540,17 +549,12 @@ export class PayloadPredictor {
       if (!response.success || !response.payload) {
         throw new Error("Invalid backend response structure");
       }
-
-      // The backend returns a more flexible format, so we need to convert it
-      // to match the expected PayloadPrediction structure
       const payload = response.payload;
 
-      // If the payload is already in the expected format, use it directly
       if (payload.fields && Array.isArray(payload.fields)) {
         return payload as PayloadPrediction;
       }
 
-      // Otherwise, try to convert the raw payload to the expected format
       const fields = [];
 
       if (typeof payload === "object" && payload !== null) {
@@ -590,5 +594,57 @@ export class PayloadPredictor {
       return "string";
     }
     return typeof value;
+  }
+
+  async suggestErrorFix(
+    route: DetectedRoute,
+    errorResponse: any,
+    requestPayload: any,
+    statusCode: number,
+  ): Promise<string | null> {
+    try {
+      const config = vscode.workspace.getConfiguration("conduit");
+      const backendUrl =
+        config.get<string>("backend.url") || "http://localhost:3002";
+
+      // Send the complete error response (not stringified) so AI can parse structure
+      const requestUrl = route.path;
+      const requestMethod = route.method.toUpperCase();
+
+      const response = await fetch(`${backendUrl}/api/ai/suggest-error-fix`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          // Send complete error response so AI can parse field-level errors
+          errorMessage: errorResponse,
+
+          // Detailed request information
+          requestBody: requestPayload,
+          requestUrl,
+          requestMethod,
+
+          // Route and endpoint details
+          code: route.handler,
+          context: `Status: ${statusCode} | Route: ${requestMethod} ${requestUrl}`,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = (await response.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        throw new Error(
+          `Error suggestion API failed: ${response.status} - ${errorData.error || response.statusText}`,
+        );
+      }
+
+      const data = (await response.json()) as { suggestion?: string };
+      return data.suggestion || null;
+    } catch (error) {
+      console.error("Error getting error fix suggestion:", error);
+      return null;
+    }
   }
 }

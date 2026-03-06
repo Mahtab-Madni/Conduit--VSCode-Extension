@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import ResponseView from "./ResponseView";
 import PayloadForm from "./PayloadForm";
+import JsonEditor from "./JsonEditor";
+import AiResponseFormatter from "./AiResponseFormatter";
 import "./Playground.css";
 
 const vscode =
@@ -8,6 +10,8 @@ const vscode =
 
 const Playground = ({ route, onSendRequest }) => {
   const [baseUrl, setBaseUrl] = useState("http://localhost:3000");
+  const [fullUrl, setFullUrl] = useState("");
+  const [suggestedUrl, setSuggestedUrl] = useState("");
   const [payload, setPayload] = useState("");
   const [headers, setHeaders] = useState("{}");
   const [pathParams, setPathParams] = useState({});
@@ -153,6 +157,9 @@ const Playground = ({ route, onSendRequest }) => {
       // Set predicted base URL immediately (will be enhanced by AI prediction)
       const predictedUrl = generatePredictedBaseUrl();
       setBaseUrl(predictedUrl);
+      const fullPredictedUrl = `${predictedUrl}${route.path}`;
+      setFullUrl(fullPredictedUrl);
+      setSuggestedUrl(fullPredictedUrl);
 
       // Auto-predict payload for POST/PUT/PATCH requests
       if (route.method !== "GET" && route.method !== "DELETE" && vscode) {
@@ -166,6 +173,22 @@ const Playground = ({ route, onSendRequest }) => {
       }
     }
   }, [route]);
+
+  // Update fullUrl when baseUrl changes (from AI prediction)
+  useEffect(() => {
+    if (route) {
+      const newFullUrl = `${baseUrl}${route.path}`;
+      // Only update suggested URL
+      setSuggestedUrl(newFullUrl);
+      // Update fullUrl only if it matches the old suggestion (user hasn't edited)
+      if (fullUrl && fullUrl.endsWith(route.path)) {
+        const oldBase = fullUrl.substring(0, fullUrl.indexOf(route.path));
+        if (oldBase !== baseUrl) {
+          setFullUrl(newFullUrl);
+        }
+      }
+    }
+  }, [baseUrl]);
 
   // Listen for response from extension
   useEffect(() => {
@@ -217,7 +240,14 @@ const Playground = ({ route, onSendRequest }) => {
 
       // Automatically populate base URL from prediction
       if (event.detail.prediction && event.detail.prediction.baseUrl) {
-        setBaseUrl(event.detail.prediction.baseUrl);
+        const newBaseUrl = event.detail.prediction.baseUrl;
+        setBaseUrl(newBaseUrl);
+        const newFullUrl = `${newBaseUrl}${route?.path || ""}`;
+        setSuggestedUrl(newFullUrl);
+        // Only update fullUrl if user hasn't modified it
+        if (!fullUrl || fullUrl === `${baseUrl}${route?.path || ""}`) {
+          setFullUrl(newFullUrl);
+        }
       }
 
       // Automatically populate JSON payload from AI prediction
@@ -340,11 +370,20 @@ const Playground = ({ route, onSendRequest }) => {
       }
     });
 
+    // Extract baseUrl from fullUrl if user has edited it
+    let effectiveBaseUrl = baseUrl;
+    if (fullUrl) {
+      const pathIndex = fullUrl.indexOf(route.path);
+      if (pathIndex > 0) {
+        effectiveBaseUrl = fullUrl.substring(0, pathIndex);
+      }
+    }
+
     // Create the request object
     const requestData = {
       ...route,
       path: finalPath,
-      baseUrl: baseUrl,
+      baseUrl: effectiveBaseUrl,
     };
 
     setIsLoading(true);
@@ -450,20 +489,49 @@ const Playground = ({ route, onSendRequest }) => {
             >
               {route?.method || "GET"}
             </div>
-            <input
-              type="text"
-              value={`${baseUrl}${route?.path || ""}`}
-              onChange={(e) => {
-                // Extract base URL part (everything before the path)
-                const fullUrl = e.target.value;
-                const pathStart = fullUrl.indexOf(route?.path || "");
-                if (pathStart > 0) {
-                  setBaseUrl(fullUrl.substring(0, pathStart - 1));
-                }
-              }}
-              className="url-input-main"
-              placeholder="Enter request URL"
-            />
+            <div className="url-input-wrapper">
+              <input
+                type="text"
+                value={fullUrl}
+                onChange={(e) => {
+                  const newUrl = e.target.value;
+                  setFullUrl(newUrl);
+                  // Try to extract base URL and update it
+                  if (route?.path) {
+                    const pathIndex = newUrl.indexOf(route.path);
+                    if (pathIndex > 0) {
+                      setBaseUrl(newUrl.substring(0, pathIndex));
+                    }
+                  }
+                }}
+                onKeyDown={(e) => {
+                  // Accept suggestion with Tab or Right Arrow at end of input
+                  if (
+                    (e.key === "Tab" ||
+                      (e.key === "ArrowRight" &&
+                        e.target.selectionStart === fullUrl.length)) &&
+                    suggestedUrl &&
+                    suggestedUrl.startsWith(fullUrl) &&
+                    suggestedUrl !== fullUrl
+                  ) {
+                    e.preventDefault();
+                    setFullUrl(suggestedUrl);
+                  }
+                }}
+                className="url-input-main"
+                placeholder="Enter request URL"
+              />
+              {suggestedUrl &&
+                suggestedUrl.startsWith(fullUrl) &&
+                suggestedUrl !== fullUrl && (
+                  <div className="url-suggestion" aria-hidden="true">
+                    <span className="url-typed">{fullUrl}</span>
+                    <span className="url-ghost">
+                      {suggestedUrl.substring(fullUrl.length)}
+                    </span>
+                  </div>
+                )}
+            </div>
             <button
               onClick={handleSendRequest}
               disabled={isLoading || !route}
@@ -521,10 +589,10 @@ const Playground = ({ route, onSendRequest }) => {
               </div>
             )}
           </div>
-          <textarea
+          <JsonEditor
             value={headers}
-            onChange={(e) => setHeaders(e.target.value)}
-            className="json-editor headers-editor"
+            onChange={setHeaders}
+            className="headers-editor"
             placeholder='{"Content-Type": "application/json", "Authorization": "Bearer token"}'
             rows={3}
           />
@@ -545,35 +613,38 @@ const Playground = ({ route, onSendRequest }) => {
                   </div>
                 )}
                 {prediction && (
-                  <button
-                    onClick={toggleFormMode}
-                    className={`mode-toggle-icon ${useFormMode ? "active" : ""}`}
+                  <div
+                    className="mode-toggle-container"
                     title={
                       useFormMode
                         ? "Switch to JSON Mode"
                         : "Switch to Form Mode"
                     }
                   >
-                    {useFormMode ? (
-                      <svg
-                        width="16"
-                        height="16"
-                        viewBox="0 0 16 16"
-                        fill="currentColor"
-                      >
-                        <path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h3A1.5 1.5 0 0 1 7 2.5v3A1.5 1.5 0 0 1 5.5 7h-3A1.5 1.5 0 0 1 1 5.5v-3zM2.5 2a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3zm6.5.5A1.5 1.5 0 0 1 10.5 1h3A1.5 1.5 0 0 1 15 2.5v3A1.5 1.5 0 0 1 13.5 7h-3A1.5 1.5 0 0 1 9 5.5v-3zm1.5-.5a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3zM1 10.5A1.5 1.5 0 0 1 2.5 9h3A1.5 1.5 0 0 1 7 10.5v3A1.5 1.5 0 0 1 5.5 15h-3A1.5 1.5 0 0 1 1 13.5v-3zm1.5-.5a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3zm6.5.5A1.5 1.5 0 0 1 10.5 9h3a1.5 1.5 0 0 1 1.5 1.5v3a1.5 1.5 0 0 1-1.5 1.5h-3A1.5 1.5 0 0 1 9 13.5v-3zm1.5-.5a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3z" />
-                      </svg>
-                    ) : (
-                      <svg
-                        width="16"
-                        height="16"
-                        viewBox="0 0 16 16"
-                        fill="currentColor"
-                      >
-                        <path d="M5 4a.5.5 0 0 0 0 1h6a.5.5 0 0 0 0-1H5zM3.854 2.146a.5.5 0 0 1 0 .708l-1.5 1.5a.5.5 0 0 1-.708 0l-.5-.5a.5.5 0 1 1 .708-.708L2 3.293l1.146-1.147a.5.5 0 0 1 .708 0zm0 4a.5.5 0 0 1 0 .708l-1.5 1.5a.5.5 0 0 1-.708 0l-.5-.5a.5.5 0 1 1 .708-.708L2 7.293l1.146-1.147a.5.5 0 0 1 .708 0zm0 4a.5.5 0 0 1 0 .708l-1.5 1.5a.5.5 0 0 1-.708 0l-.5-.5a.5.5 0 0 1 .708-.708L2 11.293l1.146-1.147a.5.5 0 0 1 .708 0zM5 8a.5.5 0 0 0 0 1h6a.5.5 0 0 0 0-1H5zm0 4a.5.5 0 0 0 0 1h6a.5.5 0 0 0 0-1H5z" />
-                      </svg>
-                    )}
-                  </button>
+                    <label className="mode-toggle-switch">
+                      <input
+                        type="checkbox"
+                        checked={useFormMode}
+                        onChange={toggleFormMode}
+                        className="mode-toggle-checkbox"
+                      />
+                      <span className="mode-toggle-slider">
+                        <span className="mode-icon mode-icon-left">
+                          &lt;&gt;
+                        </span>
+                        <span className="mode-icon mode-icon-right">
+                          <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
+                          >
+                            <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" />
+                          </svg>
+                        </span>
+                      </span>
+                    </label>
+                  </div>
                 )}
               </div>
             </div>
@@ -590,10 +661,10 @@ const Playground = ({ route, onSendRequest }) => {
                 disabled={isLoading}
               />
             ) : (
-              <textarea
+              <JsonEditor
                 value={payload}
-                onChange={(e) => setPayload(e.target.value)}
-                className="json-editor payload-editor"
+                onChange={setPayload}
+                className="payload-editor"
                 placeholder="Enter JSON payload..."
                 rows={12}
               />
@@ -628,7 +699,7 @@ const Playground = ({ route, onSendRequest }) => {
             {response && (response.status >= 400 || response.error) && (
               <div className="error-suggestions">
                 <div className="error-header">
-                  <h4>🩺 Need help fixing this error?</h4>
+                  <h4> Need help fixing this error?</h4>
                   <button
                     onClick={handleRequestErrorSuggestion}
                     disabled={isErrorSuggestionLoading}
@@ -647,7 +718,7 @@ const Playground = ({ route, onSendRequest }) => {
 
                 {errorSuggestion && (
                   <div className="suggestion-content">
-                    <div className="suggestion-text">{errorSuggestion}</div>
+                    <AiResponseFormatter content={errorSuggestion} />
                   </div>
                 )}
               </div>

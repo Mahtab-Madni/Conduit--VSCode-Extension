@@ -248,10 +248,6 @@ export class ConduitApiService {
 
     try {
       await this.saveToken(token);
-      console.log("[Conduit] Token saved successfully, verifying...");
-
-      // Verify token by getting user info
-      console.log("[Conduit] Verifying token by fetching user info...");
       const user = await this.getCurrentUser();
       console.log(
         "[Conduit] Token verified successfully for user:",
