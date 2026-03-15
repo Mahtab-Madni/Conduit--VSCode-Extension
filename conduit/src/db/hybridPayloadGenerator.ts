@@ -1,4 +1,4 @@
-import { DetectedRoute } from "../routeDetection";
+import { DetectedRoute } from "../detection/routeDetection";
 import {
   PayloadPredictor,
   PredictedField,

@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
-import { RouteDetector } from "./routeDetection";
-import { ConduitPanel } from "./webviewPanel";
+import { RouteDetector } from "./detection/routeDetection";
+import { ConduitPanel } from "./webview/WebviewPanel";
 import { PayloadPredictor } from "./ai/payloadPredictor";
 import {
   getMongoConnector,

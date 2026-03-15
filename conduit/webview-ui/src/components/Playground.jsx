@@ -631,7 +631,7 @@ const Playground = ({ route, onSendRequest }) => {
             </button>
           </div>
           <small style={{ color: "#888", marginTop: "8px", display: "block" }}>
-            ℹ️ Please check the Base URL is correct before sending the request
+            ℹ️ Please check the base URL before sending the request....
           </small>
         </div>
 

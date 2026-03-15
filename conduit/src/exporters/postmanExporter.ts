@@ -1,4 +1,4 @@
-import { DetectedRoute } from "../routeDetection";
+import { DetectedRoute } from "../detection/routeDetection";
 
 export interface PostmanCollection {
   info: {

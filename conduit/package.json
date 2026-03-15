@@ -163,11 +163,6 @@
             "**/build/**"
           ],
           "description": "Glob patterns for files to exclude from automatic snapshotting."
-        },
-        "conduit.backend.url": {
-          "type": "string",
-          "default": "http://localhost:3002",
-          "description": "URL of the Conduit backend server for history and authentication features."
         }
       }
     }

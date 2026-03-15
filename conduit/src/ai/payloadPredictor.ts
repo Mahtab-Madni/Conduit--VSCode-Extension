@@ -1,7 +1,8 @@
 import * as vscode from "vscode";
 import * as fs from "fs";
 import * as path from "path";
-import { DetectedRoute } from "../routeDetection";
+import { getBackendUrl } from "../backend/syncClient";
+import { DetectedRoute } from "../detection/routeDetection";
 import { parse } from "@babel/parser";
 import traverse, { NodePath } from "@babel/traverse";
 import { Node, FunctionDeclaration, MemberExpression } from "@babel/types";
@@ -505,9 +506,7 @@ export class PayloadPredictor {
     context: ControllerContext,
     mongoData?: any[],
   ): Promise<any> {
-    const config = vscode.workspace.getConfiguration("conduit");
-    const backendUrl =
-      config.get<string>("backend.url") || "http://localhost:3002";
+    const backendUrl = getBackendUrl();
 
     const routeInfo = {
       method: context.route.method,
@@ -603,9 +602,7 @@ export class PayloadPredictor {
     statusCode: number,
   ): Promise<string | null> {
     try {
-      const config = vscode.workspace.getConfiguration("conduit");
-      const backendUrl =
-        config.get<string>("backend.url") || "http://localhost:3002";
+      const backendUrl = getBackendUrl();
 
       // Send the complete error response (not stringified) so AI can parse structure
       const requestUrl = route.path;

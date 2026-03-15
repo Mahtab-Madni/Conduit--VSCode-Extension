@@ -1,16 +1,19 @@
 import * as vscode from "vscode";
-import { DetectedRoute } from "./routeDetection";
-import { PayloadPredictor } from "./ai/payloadPredictor";
-import { getMongoConnector, initializeMongoDB } from "./db/mongoConnector";
+import { DetectedRoute } from "../detection/routeDetection";
+import { PayloadPredictor } from "../ai/payloadPredictor";
+import { getMongoConnector, initializeMongoDB } from "../db/mongoConnector";
 import {
   HybridPayloadGenerator,
   generateHybridPayload,
-} from "./db/hybridPayloadGenerator";
-import { SampleDataFetcher, getRealDataForRoute } from "./db/sampleDataFetcher";
-import { getCollectionSchema } from "./db/schemaViewer";
-import { inferCollectionName } from "./db/collectionInferencer";
-import { ConduitApiService } from "./services/apiService";
-import { exportPostmanCollection, exportOpenAPIYaml } from "./exporters";
+} from "../db/hybridPayloadGenerator";
+import {
+  SampleDataFetcher,
+  getRealDataForRoute,
+} from "../db/sampleDataFetcher";
+import { getCollectionSchema } from "../db/schemaViewer";
+import { inferCollectionName } from "../db/collectionInferencer";
+import { ConduitApiService } from "../services/apiService";
+import { exportPostmanCollection, exportOpenAPIYaml } from "../exporters";
 import * as path from "path";
 
 export class ConduitPanel {

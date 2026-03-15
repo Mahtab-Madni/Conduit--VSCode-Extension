@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { createHash } from "crypto";
+import { getBackendUrl } from "../backend/syncClient";
 
 export interface RouteSnapshot {
   _id?: string;
@@ -74,12 +75,9 @@ export class ConduitApiService {
   private context: vscode.ExtensionContext;
   private tokenLoaded: boolean = false;
 
-  constructor(
-    context: vscode.ExtensionContext,
-    baseUrl: string = "http://localhost:3002",
-  ) {
+  constructor(context: vscode.ExtensionContext, baseUrl?: string) {
     this.context = context;
-    this.baseUrl = baseUrl;
+    this.baseUrl = baseUrl || getBackendUrl();
     // Load token asynchronously but track loading state
     this.loadToken().catch((error) => {
       console.error("Failed to load token during construction:", error);

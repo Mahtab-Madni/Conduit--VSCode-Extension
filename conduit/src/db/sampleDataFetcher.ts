@@ -1,5 +1,5 @@
 import { Document, ObjectId } from "mongodb";
-import { DetectedRoute } from "../routeDetection";
+import { DetectedRoute } from "../detection/routeDetection";
 import { getMongoConnector } from "./mongoConnector";
 import {
   inferCollectionName,

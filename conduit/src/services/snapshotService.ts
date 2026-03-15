@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import * as fs from "fs";
 import * as path from "path";
 import { createHash } from "crypto";
-import { RouteDetector, DetectedRoute } from "../routeDetection";
+import { RouteDetector, DetectedRoute } from "../detection/routeDetection";
 import { PayloadPredictor } from "../ai/payloadPredictor";
 import { ConduitApiService, RouteSnapshot } from "./apiService";
 
