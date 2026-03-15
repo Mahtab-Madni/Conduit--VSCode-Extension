@@ -1,9 +1,11 @@
 .response-view {
-  margin-top: 24px;
+  margin-top: 28px;
   border: 1px solid var(--vscode-panel-border, #2d2d30);
-  border-radius: 6px;
+  border-radius: 8px;
   background-color: var(--vscode-editor-background, #1e1e1e);
   overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: all 0.2s ease;
 }
 
 .response-view.loading-state {
@@ -14,29 +16,30 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
-  background-color: var(--vscode-tab-activeBackground, #2d2d30);
+  padding: 18px 22px;
+  background: linear-gradient(
+    to right,
+    var(--vscode-tab-activeBackground, #2d2d30),
+    rgba(45, 45, 48, 0.9)
+  );
   border-bottom: 1px solid var(--vscode-panel-border, #2d2d30);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .response-title {
   margin: 0;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--vscode-editor-foreground, #d4d4d4);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.response-meta {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.status-badge {
-  padding: 4px 12px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 600;
+.response-status {
+  padding: 6px 14px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 700;
   font-family: var(
     --vscode-editor-font-family,
     "SF Mono",
@@ -47,30 +50,34 @@
     "Courier New",
     monospace
   );
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease;
 }
 
 .status-success {
-  background-color: rgba(40, 167, 69, 0.2);
+  background-color: rgba(40, 167, 69, 0.25);
   color: #28a745;
-  border: 1px solid rgba(40, 167, 69, 0.3);
+  border: 1px solid rgba(40, 167, 69, 0.4);
 }
 
 .status-warning {
-  background-color: rgba(255, 193, 7, 0.2);
+  background-color: rgba(255, 193, 7, 0.25);
   color: #ffc107;
-  border: 1px solid rgba(255, 193, 7, 0.3);
+  border: 1px solid rgba(255, 193, 7, 0.4);
 }
 
 .status-error {
-  background-color: rgba(220, 53, 69, 0.2);
+  background-color: rgba(220, 53, 69, 0.25);
   color: #dc3545;
-  border: 1px solid rgba(220, 53, 69, 0.3);
+  border: 1px solid rgba(220, 53, 69, 0.4);
 }
 
 .status-info {
-  background-color: rgba(0, 123, 255, 0.2);
+  background-color: rgba(0, 123, 255, 0.25);
   color: #007bff;
-  border: 1px solid rgba(0, 123, 255, 0.3);
+  border: 1px solid rgba(0, 123, 255, 0.4);
 }
 
 .response-time {
@@ -129,19 +136,29 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 20px;
-  background: none;
+  padding: 14px 22px;
+  background: linear-gradient(
+    to right,
+    rgba(45, 45, 48, 0.5),
+    rgba(45, 45, 48, 0.3)
+  );
   border: none;
   color: var(--vscode-editor-foreground, #d4d4d4);
   cursor: pointer;
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   text-align: left;
-  transition: background-color 0.2s;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .headers-toggle:hover {
-  background-color: var(--vscode-list-hoverBackground, #37373d);
+  background: linear-gradient(
+    to right,
+    rgba(55, 55, 61, 0.7),
+    rgba(55, 55, 61, 0.5)
+  );
 }
 
 .toggle-icon {
@@ -170,18 +187,21 @@
 }
 
 .copy-button {
-  padding: 4px 12px;
   background-color: var(--vscode-button-secondaryBackground, #5f6a79);
   color: var(--vscode-button-secondaryForeground, #ffffff);
   border: none;
-  border-radius: 3px;
+  border-radius: 4px;
   font-size: 12px;
+  font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  padding: 8px 12px;
 }
 
 .copy-button:hover {
   background-color: var(--vscode-button-secondaryHoverBackground, #6c7b8a);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 
 .headers-text {

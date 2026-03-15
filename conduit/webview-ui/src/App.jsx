@@ -38,6 +38,7 @@ function App() {
           setIsLoading(false);
           break;
         case "authStatusUpdate":
+          console.log("Received authStatusUpdate:", message);
           setIsAuthenticated(message.isAuthenticated);
           setUser(message.user);
           break;
@@ -219,7 +220,7 @@ function App() {
             onClick={toggleHistoryPanel}
             title="Toggle History Panel"
           >
-            📅 History
+            History
           </button>
           {isAuthenticated && user ? (
             <div className="auth-info">

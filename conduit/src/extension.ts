@@ -108,6 +108,11 @@ export function activate(context: vscode.ExtensionContext) {
                 `Successfully logged in as ${user.displayName || user.username}!`,
               );
 
+              // Update webview with new auth status (with a slight delay to ensure token is saved)
+              setTimeout(() => {
+                currentPanel?.updateAuthStatus();
+              }, 100);
+
               // Also show success in console
               console.log("[Conduit] Login process completed successfully");
             } catch (error: any) {
@@ -147,7 +152,11 @@ export function activate(context: vscode.ExtensionContext) {
     const commands = [
       // Open Conduit panel
       vscode.commands.registerCommand("conduit.openPanel", () => {
-        currentPanel = ConduitPanel.createOrShow(context.extensionUri, context);
+        currentPanel = ConduitPanel.createOrShow(
+          context.extensionUri,
+          context,
+          apiService,
+        );
         refreshRoutes();
       }),
 
@@ -313,6 +322,10 @@ export function activate(context: vscode.ExtensionContext) {
             vscode.window.showInformationMessage(
               `Successfully logged in as ${user.displayName || user.username}!`,
             );
+            // Update webview with new auth status (with a slight delay to ensure token is saved)
+            setTimeout(() => {
+              currentPanel?.updateAuthStatus();
+            }, 100);
             return;
           } catch (vscodeAuthError) {
             console.log(
@@ -348,6 +361,10 @@ export function activate(context: vscode.ExtensionContext) {
                     vscode.window.showInformationMessage(
                       `Successfully logged in as ${user.displayName || user.username}!`,
                     );
+                    // Update webview with new auth status (with a slight delay to ensure token is saved)
+                    setTimeout(() => {
+                      currentPanel?.updateAuthStatus();
+                    }, 100);
                   })
                   .catch((err) => {
                     vscode.window.showErrorMessage(
@@ -367,6 +384,8 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.window.showInformationMessage(
           "Successfully logged out of Conduit",
         );
+        // Update webview with new auth status
+        currentPanel?.updateAuthStatus();
       }),
 
       vscode.commands.registerCommand("conduit.checkAuthStatus", async () => {

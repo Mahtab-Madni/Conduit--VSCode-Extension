@@ -143,7 +143,7 @@ npm run watch
 ### Viewing History
 
 1. Select a route from the sidebar
-2. Click "📅 History" button to toggle history panel
+2. Click " History" button to toggle history panel
 3. See timeline of all route versions with timestamps
 4. Click any snapshot to restore its payload in the playground
 

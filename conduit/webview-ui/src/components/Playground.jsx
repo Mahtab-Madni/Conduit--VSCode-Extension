@@ -17,6 +17,7 @@ const Playground = ({ route, onSendRequest }) => {
   const [pathParams, setPathParams] = useState({});
   const [response, setResponse] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [userEditedUrl, setUserEditedUrl] = useState(false);
 
   // AI Prediction states
   const [prediction, setPrediction] = useState(null);
@@ -94,26 +95,7 @@ const Playground = ({ route, onSendRequest }) => {
       headers["Content-Type"] = "application/json";
     }
 
-    // Check if route might need authentication
-    const routePath = route.path.toLowerCase();
-    const needsAuth = [
-      "auth",
-      "login",
-      "user",
-      "profile",
-      "dashboard",
-      "admin",
-      "create",
-      "update",
-      "delete",
-      "post",
-      "put",
-      "patch",
-    ].some((keyword) => routePath.includes(keyword));
-
-    if (needsAuth) {
-      headers["Authorization"] = "Bearer your-token-here";
-    }
+    // Don't add Authorization header here - it will be added automatically when token is set
 
     // Always add Accept header
     headers["Accept"] = "application/json";
@@ -139,6 +121,7 @@ const Playground = ({ route, onSendRequest }) => {
       setPrediction(null);
       setPredictionError(null);
       setUseFormMode(false);
+      setUserEditedUrl(false); // Reset URL edited flag when route changes
 
       // Initialize path parameters
       const params = getPathParams(route.path);
@@ -176,19 +159,12 @@ const Playground = ({ route, onSendRequest }) => {
 
   // Update fullUrl when baseUrl changes (from AI prediction)
   useEffect(() => {
-    if (route) {
+    if (route && !userEditedUrl) {
       const newFullUrl = `${baseUrl}${route.path}`;
-      // Only update suggested URL
+      setFullUrl(newFullUrl);
       setSuggestedUrl(newFullUrl);
-      // Update fullUrl only if it matches the old suggestion (user hasn't edited)
-      if (fullUrl && fullUrl.endsWith(route.path)) {
-        const oldBase = fullUrl.substring(0, fullUrl.indexOf(route.path));
-        if (oldBase !== baseUrl) {
-          setFullUrl(newFullUrl);
-        }
-      }
     }
-  }, [baseUrl]);
+  }, [baseUrl, route, userEditedUrl]);
 
   // Listen for response from extension
   useEffect(() => {
@@ -242,12 +218,7 @@ const Playground = ({ route, onSendRequest }) => {
       if (event.detail.prediction && event.detail.prediction.baseUrl) {
         const newBaseUrl = event.detail.prediction.baseUrl;
         setBaseUrl(newBaseUrl);
-        const newFullUrl = `${newBaseUrl}${route?.path || ""}`;
-        setSuggestedUrl(newFullUrl);
-        // Only update fullUrl if user hasn't modified it
-        if (!fullUrl || fullUrl === `${baseUrl}${route?.path || ""}`) {
-          setFullUrl(newFullUrl);
-        }
+        // fullUrl will be updated automatically by the baseUrl useEffect if user hasn't edited it
       }
 
       // Automatically populate JSON payload from AI prediction
@@ -332,10 +303,50 @@ const Playground = ({ route, onSendRequest }) => {
     };
   }, []);
 
-  // Handle auth token changes
+  // Handle auth token changes - automatically update headers with auth token
   useEffect(() => {
     localStorage.setItem("conduit-auth-token", authToken);
-  }, [authToken]);
+
+    // Automatically add/update auth token in headers if token exists
+    if (authToken) {
+      try {
+        const currentHeadersObj = JSON.parse(headers || "{}");
+        const currentAuth = currentHeadersObj["Authorization"] || "";
+        const newAuth = `Bearer ${authToken}`;
+
+        // Only update if Authorization header is missing, empty, or still a placeholder
+        if (
+          !currentAuth ||
+          currentAuth === "Bearer your-token-here" ||
+          currentAuth === "Bearer " ||
+          currentAuth.startsWith("Bearer ")
+        ) {
+          // Update if it's a Bearer token (likely ours)
+          if (currentAuth !== newAuth) {
+            // Only update if actually changed
+            currentHeadersObj["Authorization"] = newAuth;
+            setHeaders(JSON.stringify(currentHeadersObj, null, 2));
+          }
+        }
+      } catch (e) {
+        // If headers aren't valid JSON, skip the update
+      }
+    } else {
+      // When token is cleared, remove Authorization header if it's a Bearer token
+      try {
+        const currentHeadersObj = JSON.parse(headers || "{}");
+        const currentAuth = currentHeadersObj["Authorization"] || "";
+
+        // Remove Authorization header only if it's a Bearer token (our managed one)
+        if (currentAuth && currentAuth.startsWith("Bearer ")) {
+          delete currentHeadersObj["Authorization"];
+          setHeaders(JSON.stringify(currentHeadersObj, null, 2));
+        }
+      } catch (e) {
+        // If headers aren't valid JSON, skip the update
+      }
+    }
+  }, [authToken, headers]);
 
   const handleSendRequest = () => {
     if (!route) return;
@@ -390,11 +401,7 @@ const Playground = ({ route, onSendRequest }) => {
     setResponse(null);
     setErrorSuggestion(null);
 
-    // Add auth header if required and token is available
-    if (requiresAuth && authToken) {
-      parsedHeaders["Authorization"] = `Bearer ${authToken}`;
-    }
-
+    // Headers now include auth token automatically from the headers state
     onSendRequest(requestData, parsedPayload, parsedHeaders);
   };
 
@@ -496,6 +503,7 @@ const Playground = ({ route, onSendRequest }) => {
                 onChange={(e) => {
                   const newUrl = e.target.value;
                   setFullUrl(newUrl);
+                  setUserEditedUrl(true); // Mark URL as manually edited
                   // Try to extract base URL and update it
                   if (route?.path) {
                     const pathIndex = newUrl.indexOf(route.path);
@@ -547,6 +555,9 @@ const Playground = ({ route, onSendRequest }) => {
               )}
             </button>
           </div>
+          <small style={{ color: "#888", marginTop: "8px", display: "block" }}>
+            💡 Check that the URL is correct before sending the request
+          </small>
         </div>
 
         {/* Path Parameters */}
@@ -576,17 +587,37 @@ const Playground = ({ route, onSendRequest }) => {
         <div className="section">
           <div className="section-header">
             <label className="section-title">Headers (JSON)</label>
-            {requiresAuth && (
+            {authToken && (
               <div className="auth-section">
-                <label className="auth-label">🔐 Auth Token:</label>
-                <input
-                  type="password"
-                  value={authToken}
-                  onChange={(e) => setAuthToken(e.target.value)}
-                  className="auth-input"
-                  placeholder="Enter your Bearer token..."
-                />
+                <span className="auth-label">🔐 Auth Token Configured</span>
               </div>
+            )}
+          </div>
+          <div className="header-info">
+            {requiresAuth && (
+              <>
+                <small
+                  style={{
+                    color: "#666",
+                    marginBottom: "8px",
+                    display: "block",
+                  }}
+                >
+                  This route requires authentication. Enter your token below:
+                </small>
+                <div
+                  style={{ display: "flex", gap: "8px", marginBottom: "8px" }}
+                >
+                  <input
+                    type="password"
+                    value={authToken}
+                    onChange={(e) => setAuthToken(e.target.value)}
+                    className="auth-input"
+                    placeholder="Enter Bearer token (will be added to Authorization header automatically)..."
+                    style={{ flex: 1 }}
+                  />
+                </div>
+              </>
             )}
           </div>
           <JsonEditor

@@ -26,6 +26,7 @@ export class ConduitPanel {
   public static createOrShow(
     extensionUri: vscode.Uri,
     context: vscode.ExtensionContext,
+    apiService?: ConduitApiService,
   ) {
     const column = vscode.window.activeTextEditor
       ? vscode.window.activeTextEditor.viewColumn
@@ -52,7 +53,12 @@ export class ConduitPanel {
       },
     );
 
-    ConduitPanel.currentPanel = new ConduitPanel(panel, extensionUri, context);
+    ConduitPanel.currentPanel = new ConduitPanel(
+      panel,
+      extensionUri,
+      context,
+      apiService,
+    );
     return ConduitPanel.currentPanel;
   }
 
@@ -60,13 +66,14 @@ export class ConduitPanel {
     panel: vscode.WebviewPanel,
     extensionUri: vscode.Uri,
     context: vscode.ExtensionContext,
+    apiService?: ConduitApiService,
   ) {
     this._panel = panel;
     this._extensionUri = extensionUri;
     this._context = context;
     this._payloadPredictor = new PayloadPredictor(context);
     this._hybridPayloadGenerator = new HybridPayloadGenerator(context);
-    this._apiService = new ConduitApiService(context);
+    this._apiService = apiService || new ConduitApiService(context);
 
     // Initialize MongoDB connection
     this.initializeMongoDB();
@@ -167,6 +174,11 @@ export class ConduitPanel {
       command: "updateRoutes",
       routes: routes,
     });
+  }
+
+  public updateAuthStatus() {
+    // Send updated auth status to the webview
+    this.sendAuthStatus();
   }
 
   private async sendHttpRequest(
@@ -734,6 +746,9 @@ export class ConduitPanel {
 
   private async sendAuthStatus() {
     try {
+      // Force reload token from secrets to ensure we have the latest state
+      await this._apiService.reloadToken();
+
       const isAuthenticated = await this._apiService.isAuthenticated();
       let user = null;
 
