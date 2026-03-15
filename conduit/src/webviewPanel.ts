@@ -10,6 +10,8 @@ import { SampleDataFetcher, getRealDataForRoute } from "./db/sampleDataFetcher";
 import { getCollectionSchema } from "./db/schemaViewer";
 import { inferCollectionName } from "./db/collectionInferencer";
 import { ConduitApiService } from "./services/apiService";
+import { exportPostmanCollection, exportOpenAPIYaml } from "./exporters";
+import * as path from "path";
 
 export class ConduitPanel {
   public static currentPanel: ConduitPanel | undefined;
@@ -146,6 +148,19 @@ export class ConduitPanel {
             return;
           case "compareSnapshots":
             this.compareSnapshots(message.snapshotId1, message.snapshotId2);
+            return;
+          case "exportPostman":
+            this.exportPostman(message.routes, message.payloads);
+            return;
+          case "exportOpenAPI":
+            this.exportOpenAPI(
+              message.routes,
+              message.payloads,
+              message.schemas,
+            );
+            return;
+          case "copyCurl":
+            this.copyCurl(message.command);
             return;
         }
       },
@@ -831,6 +846,97 @@ export class ConduitPanel {
         error: error instanceof Error ? error.message : String(error),
       });
     }
+  }
+
+  private async exportPostman(
+    routes: DetectedRoute[],
+    payloads: Record<string, any>,
+  ) {
+    try {
+      const baseUrl =
+        vscode.workspace.getConfiguration("conduit").get<string>("baseUrl") ||
+        "http://localhost:3000";
+
+      const collection = exportPostmanCollection(routes, baseUrl, payloads);
+
+      // Show save dialog
+      const uri = await vscode.window.showSaveDialog({
+        defaultUri: vscode.Uri.file(
+          path.join(
+            vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || "",
+            "conduit_collection.json",
+          ),
+        ),
+        filters: { JSON: ["json"] },
+      });
+
+      if (uri) {
+        await vscode.workspace.fs.writeFile(
+          uri,
+          Buffer.from(collection, "utf8"),
+        );
+        vscode.window.showInformationMessage(
+          `✅ Postman collection exported to ${uri.fsPath}`,
+        );
+      }
+    } catch (error) {
+      vscode.window.showErrorMessage(
+        `Failed to export Postman collection: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  private async exportOpenAPI(
+    routes: DetectedRoute[],
+    payloads: Record<string, any>,
+    schemas: Record<string, any>,
+  ) {
+    try {
+      const baseUrl =
+        vscode.workspace.getConfiguration("conduit").get<string>("baseUrl") ||
+        "http://localhost:3000";
+
+      const yamlContent = exportOpenAPIYaml(routes, baseUrl, payloads, schemas);
+
+      // Show save dialog
+      const uri = await vscode.window.showSaveDialog({
+        defaultUri: vscode.Uri.file(
+          path.join(
+            vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || "",
+            "openapi.yaml",
+          ),
+        ),
+        filters: { YAML: ["yaml", "yml"] },
+      });
+
+      if (uri) {
+        await vscode.workspace.fs.writeFile(
+          uri,
+          Buffer.from(yamlContent, "utf8"),
+        );
+        vscode.window.showInformationMessage(
+          `✅ OpenAPI specification exported to ${uri.fsPath}`,
+        );
+      }
+    } catch (error) {
+      vscode.window.showErrorMessage(
+        `Failed to export OpenAPI spec: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  private copyCurl(command: string) {
+    // Copy to system clipboard
+    require("child_process").exec(
+      `echo "${command.replace(/"/g, '\\"')}" | clip`,
+      (error: any) => {
+        if (!error) {
+          vscode.window.showInformationMessage(
+            "✅ cURL command copied to clipboard",
+          );
+        }
+      },
+    );
   }
 }
 

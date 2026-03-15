@@ -198,6 +198,42 @@ function App() {
     setShowHistory(!showHistory);
   };
 
+  const handleExportPostman = () => {
+    if (vscode && routes.length > 0) {
+      // Collect payloads from routes if available
+      const payloads = {};
+      routes.forEach((route) => {
+        // We'll use an empty payload for now - in a real scenario
+        // you might want to collect actual payloads from the playground
+        payloads[route.path] = {};
+      });
+
+      vscode.postMessage({
+        command: "exportPostman",
+        routes: routes,
+        payloads: payloads,
+      });
+    }
+  };
+
+  const handleExportOpenAPI = () => {
+    if (vscode && routes.length > 0) {
+      const payloads = {};
+      const schemas = {};
+
+      routes.forEach((route) => {
+        payloads[route.path] = {};
+      });
+
+      vscode.postMessage({
+        command: "exportOpenAPI",
+        routes: routes,
+        payloads: payloads,
+        schemas: schemas,
+      });
+    }
+  };
+
   return (
     <div className="app">
       <div className="header">
@@ -249,6 +285,8 @@ function App() {
             selectedRoute={selectedRoute}
             onSelectRoute={setSelectedRoute}
             isLoading={isLoading}
+            onExportPostman={handleExportPostman}
+            onExportOpenAPI={handleExportOpenAPI}
           />
         </div>
 

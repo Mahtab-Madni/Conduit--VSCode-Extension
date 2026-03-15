@@ -1,8 +1,17 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import "./RouteList.css";
 
-const RouteList = ({ routes, selectedRoute, onSelectRoute, isLoading }) => {
+const RouteList = ({
+  routes,
+  selectedRoute,
+  onSelectRoute,
+  isLoading,
+  onExportPostman,
+  onExportOpenAPI,
+}) => {
   const [collapsedGroups, setCollapsedGroups] = useState(new Set());
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterMethods, setFilterMethods] = useState(new Set());
 
   // Group routes by their path prefix (e.g., /users, /orders, /auth)
   const groupRoutes = (routes) => {
@@ -33,18 +42,53 @@ const RouteList = ({ routes, selectedRoute, onSelectRoute, isLoading }) => {
     setCollapsedGroups(newCollapsed);
   };
 
+  const toggleMethodFilter = (method) => {
+    const newFilters = new Set(filterMethods);
+    if (newFilters.has(method)) {
+      newFilters.delete(method);
+    } else {
+      newFilters.add(method);
+    }
+    setFilterMethods(newFilters);
+  };
+
+  // Filter routes based on search query and method filters
+  const filteredRoutes = useMemo(() => {
+    return routes.filter((route) => {
+      // Apply method filter (if no filters selected, show all)
+      if (
+        filterMethods.size > 0 &&
+        !filterMethods.has(route.method.toUpperCase())
+      ) {
+        return false;
+      }
+
+      // Apply search filter
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        return (
+          route.path.toLowerCase().includes(query) ||
+          route.handler.toLowerCase().includes(query) ||
+          route.filePath.toLowerCase().includes(query)
+        );
+      }
+
+      return true;
+    });
+  }, [routes, searchQuery, filterMethods]);
+
   const getMethodColor = (method) => {
     switch (method.toUpperCase()) {
       case "GET":
-        return "#28a745";
+        return "#55d372";
       case "POST":
-        return "#007bff";
+        return "#3e80c7";
       case "PUT":
-        return "#ffc107";
+        return "#dfb843";
       case "DELETE":
-        return "#dc3545";
+        return "#c7424f";
       case "PATCH":
-        return "#6f42c1";
+        return "#8554e1";
       default:
         return "#6c757d";
     }
@@ -73,13 +117,97 @@ const RouteList = ({ routes, selectedRoute, onSelectRoute, isLoading }) => {
     );
   }
 
-  const groupedRoutes = groupRoutes(routes);
+  const groupedRoutes = groupRoutes(filteredRoutes);
+  const hasFilters = searchQuery.trim() || filterMethods.size > 0;
 
   return (
     <div className="route-list">
       <div className="routes-header">
-        <h2>API Routes ({routes.length})</h2>
+        <h2>
+          API Routes ({filteredRoutes.length}/{routes.length})
+        </h2>
       </div>
+
+      {/* Search and Filter Bar */}
+      <div className="routes-search-section">
+        <div className="search-bar-wrapper">
+          <input
+            type="text"
+            className="search-bar"
+            placeholder="Search by path, handler, or file..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          {searchQuery && (
+            <button
+              className="search-clear-btn"
+              onClick={() => setSearchQuery("")}
+              title="Clear search"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+
+        {/* Method Filter Buttons */}
+        <div className="method-filters">
+          {["GET", "POST", "PUT", "DELETE", "PATCH"].map((method) => {
+            const methodColor = getMethodColor(method);
+            const isActive =
+              filterMethods.size === 0 || filterMethods.has(method);
+            const isFiltered = filterMethods.has(method);
+
+            return (
+              <button
+                key={method}
+                className={`method-filter-btn ${isActive && !isFiltered ? "all" : isFiltered ? "active" : "inactive"}`}
+                onClick={() => toggleMethodFilter(method)}
+                title={`Filter by ${method}`}
+                style={{
+                  borderColor: methodColor,
+                  backgroundColor: isFiltered ? methodColor : "transparent",
+                  color: isFiltered ? "white" : methodColor,
+                }}
+              >
+                {method}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Export Buttons */}
+        <div className="export-buttons">
+          <button
+            className="export-btn postman-btn"
+            onClick={onExportPostman}
+            title="Export as Postman Collection"
+          >
+            Postman
+          </button>
+          <button
+            className="export-btn openapi-btn"
+            onClick={onExportOpenAPI}
+            title="Export as OpenAPI/Swagger"
+          >
+            OpenAPI
+          </button>
+        </div>
+      </div>
+
+      {/* No Results Message */}
+      {hasFilters && Object.keys(groupedRoutes).length === 0 && (
+        <div className="no-results">
+          <p>No routes match your search criteria</p>
+          <button
+            onClick={() => {
+              setSearchQuery("");
+              setFilterMethods(new Set());
+            }}
+          >
+            Clear filters
+          </button>
+        </div>
+      )}
 
       {Object.entries(groupedRoutes).map(([groupName, groupRoutes]) => {
         const isCollapsed = collapsedGroups.has(groupName);

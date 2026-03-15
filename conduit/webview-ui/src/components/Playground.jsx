@@ -8,6 +8,47 @@ import "./Playground.css";
 const vscode =
   window.vscode || (window.acquireVsCodeApi ? window.acquireVsCodeApi() : null);
 
+// Function to generate cURL command
+const generateCurlCommand = (method, url, headers, payload) => {
+  let cmd = `curl -X ${method} "${url}"`;
+
+  // Parse headers if it's a JSON string
+  let headersObj = {};
+  if (typeof headers === "string") {
+    try {
+      headersObj = JSON.parse(headers);
+    } catch (e) {
+      headersObj = {};
+    }
+  } else {
+    headersObj = headers;
+  }
+
+  // Add headers to command
+  for (const [key, value] of Object.entries(headersObj)) {
+    cmd += ` \\\n  -H "${key}: ${value}"`;
+  }
+
+  // Add body for POST/PUT/PATCH
+  if (["POST", "PUT", "PATCH"].includes(method.toUpperCase())) {
+    let bodyStr = "{}";
+    if (payload) {
+      try {
+        if (typeof payload === "string") {
+          bodyStr = payload;
+        } else {
+          bodyStr = JSON.stringify(payload);
+        }
+      } catch (e) {
+        bodyStr = "{}";
+      }
+    }
+    cmd += ` \\\n  -d '${bodyStr.replace(/'/g, "'\\''")}'`;
+  }
+
+  return cmd;
+};
+
 const Playground = ({ route, onSendRequest }) => {
   const [baseUrl, setBaseUrl] = useState("http://localhost:3000");
   const [fullUrl, setFullUrl] = useState("");
@@ -18,6 +59,7 @@ const Playground = ({ route, onSendRequest }) => {
   const [response, setResponse] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [userEditedUrl, setUserEditedUrl] = useState(false);
+  const [copiedCurl, setCopiedCurl] = useState(false);
 
   // AI Prediction states
   const [prediction, setPrediction] = useState(null);
@@ -554,9 +596,42 @@ const Playground = ({ route, onSendRequest }) => {
                 "Send"
               )}
             </button>
+            <button
+              onClick={() => {
+                const curlCmd = generateCurlCommand(
+                  route.method,
+                  fullUrl,
+                  headers,
+                  payload,
+                );
+                // Copy to clipboard
+                navigator.clipboard.writeText(curlCmd).then(
+                  () => {
+                    setCopiedCurl(true);
+                    setTimeout(() => setCopiedCurl(false), 2000);
+                  },
+                  () => {
+                    // Fallback for browsers that don't support clipboard API
+                    const textArea = document.createElement("textarea");
+                    textArea.value = curlCmd;
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    document.execCommand("copy");
+                    document.body.removeChild(textArea);
+                    setCopiedCurl(true);
+                    setTimeout(() => setCopiedCurl(false), 2000);
+                  },
+                );
+              }}
+              disabled={!route}
+              className="copy-curl-button-main"
+              title="Copy as cURL"
+            >
+              {copiedCurl ? "Copied!" : "cURL"}
+            </button>
           </div>
           <small style={{ color: "#888", marginTop: "8px", display: "block" }}>
-            💡 Check that the URL is correct before sending the request
+            ℹ️ Please check the Base URL is correct before sending the request
           </small>
         </div>
 

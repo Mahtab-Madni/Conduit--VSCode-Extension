@@ -1,0 +1,161 @@
+/* VS Code Theme Variables Mapping and Defaults
+ * This file provides comprehensive CSS variable definitions
+ * with proper fallbacks for VS Code's built-in themes:
+ * - Dark theme
+ * - Light theme  
+ * - High contrast theme
+ */
+
+:root {
+  /* Editor Colors */
+  --vscode-editor-background: #1e1e1e;
+  --vscode-editor-foreground: #d4d4d4;
+  --vscode-editor-lineHighlightBackground: #2d2d2d;
+  --vscode-editor-lineNumberForeground: #666666;
+  --vscode-editor-selectionBackground: #264f78;
+  --vscode-editorCursor-foreground: #aeafad;
+
+  /* Sidebar Colors */
+  --vscode-sideBar-background: #252526;
+  --vscode-sideBar-foreground: #cccccc;
+  --vscode-sideBar-border: #3e3e42;
+  --vscode-sideBarTitle-foreground: #bbbbbb;
+  --vscode-sideBarSectionHeader-background: #3e3e42;
+  --vscode-sideBarSectionHeader-foreground: #cccccc;
+
+  /* Panel Colors */
+  --vscode-panel-background: #1e1e1e;
+  --vscode-panel-foreground: #cccccc;
+  --vscode-panel-border: #3e3e42;
+
+  /* Input Colors */
+  --vscode-input-background: #3c3c3c;
+  --vscode-input-foreground: #cccccc;
+  --vscode-input-border: #555555;
+  --vscode-input-placeholderForeground: #666666;
+
+  /* Button Colors */
+  --vscode-button-background: #0e639c;
+  --vscode-button-hoverBackground: #1177bb;
+  --vscode-button-foreground: #ffffff;
+  --vscode-button-secondaryBackground: #5a5d5e;
+  --vscode-button-secondaryHoverBackground: #6a6d6e;
+  --vscode-button-secondaryForeground: #cccccc;
+  --vscode-button-border: transparent;
+
+  /* List Colors */
+  --vscode-list-activeSelectionBackground: #094771;
+  --vscode-list-activeSelectionForeground: #ffffff;
+  --vscode-list-hoverBackground: #2d2d30;
+  --vscode-list-focusBackground: #094771;
+
+  /* Focus Border */
+  --vscode-focusBorder: #007acc;
+
+  /* Error/Warning/Info */
+  --vscode-errorForeground: #f85149;
+  --vscode-warningForeground: #dcdcaa;
+  --vscode-descriptionForeground: #cccccc99;
+
+  /* Text Colors */
+  --vscode-foreground: #cccccc;
+  --vscode-textLink-foreground: #569cd6;
+  --vscode-textLinkActiveForeground: #4fc1ff;
+
+  /* Title Bar */
+  --vscode-titleBar-activeBackground: #323233;
+  --vscode-titleBar-activeForeground: #cccccc;
+  --vscode-titleBar-inactiveBackground: #2d2d2d;
+  --vscode-titleBar-inactiveForeground: #969696;
+
+  /* Widget Colors */
+  --vscode-editorWidget-background: #252526;
+  --vscode-editorWidget-border: #454545;
+}
+
+/* Light Theme */
+@media (prefers-color-scheme: light) {
+  :root {
+    --vscode-editor-background: #ffffff;
+    --vscode-editor-foreground: #333333;
+    --vscode-editor-lineHighlightBackground: #f5f5f5;
+    --vscode-editor-lineNumberForeground: #999999;
+    --vscode-editor-selectionBackground: #add6ff;
+
+    --vscode-sideBar-background: #f3f3f3;
+    --vscode-sideBar-foreground: #333333;
+    --vscode-sideBar-border: #e7e7e7;
+
+    --vscode-panel-background: #ffffff;
+    --vscode-panel-foreground: #333333;
+    --vscode-panel-border: #e7e7e7;
+
+    --vscode-input-background: #ffffff;
+    --vscode-input-foreground: #333333;
+    --vscode-input-border: #cccccc;
+    --vscode-input-placeholderForeground: #999999;
+
+    --vscode-button-background: #0078d4;
+    --vscode-button-hoverBackground: #106ebe;
+    --vscode-button-foreground: #ffffff;
+
+    --vscode-list-activeSelectionBackground: #0078d4;
+    --vscode-list-hoverBackground: #e8e8e8;
+
+    --vscode-focusBorder: #0078d4;
+    --vscode-errorForeground: #cd3131;
+    --vscode-warningForeground: #e5e510;
+
+    --vscode-foreground: #333333;
+    --vscode-textLink-foreground: #005a9c;
+  }
+}
+
+/* High Contrast Theme */
+@media (forced-colors: active) {
+  :root {
+    --vscode-editor-background: Canvas;
+    --vscode-editor-foreground: CanvasText;
+    --vscode-editor-selectionBackground: Highlight;
+
+    --vscode-button-background: ButtonFace;
+    --vscode-button-foreground: ButtonText;
+    --vscode-button-border: ButtonBorder;
+
+    --vscode-focusBorder: Highlight;
+    --vscode-errorForeground: Mark;
+  }
+}
+
+/* Theme-aware utility classes */
+.theme-aware-background {
+  background-color: var(--vscode-editor-background);
+}
+
+.theme-aware-foreground {
+  color: var(--vscode-editor-foreground);
+}
+
+.theme-aware-border {
+  border-color: var(--vscode-panel-border);
+}
+
+.theme-aware-button {
+  background-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  border-color: var(--vscode-button-border);
+}
+
+.theme-aware-button:hover {
+  background-color: var(--vscode-button-hoverBackground);
+}
+
+.theme-aware-input {
+  background-color: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border-color: var(--vscode-input-border);
+}
+
+.theme-aware-input::placeholder {
+  color: var(--vscode-input-placeholderForeground);
+}
