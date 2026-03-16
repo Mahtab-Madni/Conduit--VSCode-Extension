@@ -242,10 +242,10 @@ function App() {
             src="Conduit.png"
             alt="Conduit Logo"
             style={{
-              maxWidth: "30px",
-              maxHeight: "30px",
-              margin: "0 10px 0 0",
-              translate: "0 6px",
+              maxWidth: "40px",
+              maxHeight: "40px",
+              margin: "0 8px 0 0",
+              verticalAlign: "middle",
             }}
           />
           Conduit API Explorer
