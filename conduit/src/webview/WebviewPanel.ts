@@ -146,11 +146,43 @@ export class ConduitPanel {
           case "logout":
             vscode.commands.executeCommand("conduit.logout");
             return;
+          case "saveCheckpoint":
+            this.saveCheckpoint(
+              message.route,
+              message.label,
+              message.payload,
+              message.response,
+            );
+            return;
           case "getRouteHistory":
-            this.getRouteHistory(message.routeId, message.limit);
+            // Handle both old (routeId) and new (route) message formats
+            if (message.route) {
+              const routeId = this._apiService.generateRouteId(
+                message.route.method,
+                message.route.path,
+                message.route.filePath,
+              );
+              console.log(
+                "[WebviewPanel] Calculated routeId from route:",
+                routeId,
+              );
+              this.getRouteHistory(routeId, message.limit);
+            } else {
+              // Fallback for old format
+              this.getRouteHistory(message.routeId, message.limit);
+            }
             return;
           case "compareSnapshots":
             this.compareSnapshots(message.snapshotId1, message.snapshotId2);
+            return;
+          case "restoreSnapshot":
+            this.restoreSnapshot(message.snapshotId, message.snapshot);
+            return;
+          case "updateSnapshotNotes":
+            this.updateSnapshotNotes(message.snapshotId, message.notes);
+            return;
+          case "updateSnapshotTags":
+            this.updateSnapshotTags(message.snapshotId, message.tags);
             return;
           case "exportPostman":
             this.exportPostman(message.routes, message.payloads);
@@ -792,6 +824,95 @@ export class ConduitPanel {
     }
   }
 
+  private async saveCheckpoint(
+    route: DetectedRoute,
+    label: string,
+    payload: any,
+    response: any,
+  ) {
+    try {
+      if (!this._apiService.isAuthenticated()) {
+        vscode.window.showErrorMessage(
+          "Authentication required to save checkpoint",
+        );
+        return;
+      }
+
+      if (!label || !label.trim()) {
+        vscode.window.showErrorMessage(
+          "Checkpoint label is required (like a git commit message)",
+        );
+        return;
+      }
+
+      const routeId = this._apiService.generateRouteId(
+        route.method,
+        route.path,
+        route.filePath,
+      );
+
+      // Read the current file content for the code snapshot
+      let fileContent = "";
+      try {
+        const fileUri = vscode.Uri.file(route.filePath);
+        const fileBytes = await vscode.workspace.fs.readFile(fileUri);
+        fileContent = new TextDecoder().decode(fileBytes);
+      } catch (readError) {
+        console.warn(
+          "[WebviewPanel] Could not read file for checkpoint:",
+          readError,
+        );
+        fileContent = ""; // Allow checkpoint to proceed without file content
+      }
+
+      console.log("[WebviewPanel] Saving checkpoint:", {
+        routePath: route.path,
+        method: route.method,
+        label: label.trim(),
+      });
+
+      const checkpointData = {
+        routeId,
+        routePath: route.path,
+        method: route.method,
+        code: fileContent,
+        label: label.trim(),
+        lastPayload: payload,
+        lastResponse: response || {},
+        filePath: route.filePath,
+        metadata: {
+          framework: "unknown",
+        },
+      };
+
+      const result = await this._apiService.saveCheckpoint(checkpointData);
+
+      console.log("[WebviewPanel] Checkpoint saved:", result);
+
+      vscode.window.showInformationMessage(
+        `✅ Checkpoint saved: ${label.trim()}\n${route.method} ${route.path}`,
+      );
+
+      this._panel.webview.postMessage({
+        command: "checkpointSaved",
+        success: true,
+        message: `Checkpoint saved successfully`,
+      });
+    } catch (error) {
+      console.error("Error saving checkpoint:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      vscode.window.showErrorMessage(
+        `Failed to save checkpoint: ${errorMessage}`,
+      );
+      this._panel.webview.postMessage({
+        command: "checkpointSaved",
+        success: false,
+        error: errorMessage,
+      });
+    }
+  }
+
   private async getRouteHistory(routeId: string, limit: number = 20) {
     try {
       if (!this._apiService.isAuthenticated()) {
@@ -848,6 +969,90 @@ export class ConduitPanel {
         success: false,
         error: error instanceof Error ? error.message : String(error),
       });
+    }
+  }
+
+  private async restoreSnapshot(snapshotId: string, snapshot: any) {
+    try {
+      if (!this._apiService.isAuthenticated()) {
+        vscode.window.showErrorMessage(
+          "Authentication required to restore snapshot",
+        );
+        return;
+      }
+
+      // Fetch full snapshot details
+      const restored = await this._apiService.restoreSnapshot(snapshotId);
+
+      if (restored.success && restored.data) {
+        // Send restored payload to webview for display in payload editor
+        this._panel.webview.postMessage({
+          command: "snapshotRestored",
+          snapshotId: snapshotId,
+          data: restored.data,
+        });
+
+        vscode.window.showInformationMessage(
+          `✅ Snapshot restored: ${restored.data.method} ${restored.data.routePath}`,
+        );
+      } else {
+        vscode.window.showErrorMessage("Failed to restore snapshot");
+      }
+    } catch (error) {
+      console.error("Error restoring snapshot:", error);
+      vscode.window.showErrorMessage(
+        `Failed to restore snapshot: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  private async updateSnapshotNotes(snapshotId: string, notes: string) {
+    try {
+      if (!this._apiService.isAuthenticated()) {
+        vscode.window.showErrorMessage("Authentication required");
+        return;
+      }
+
+      await this._apiService.updateSnapshot(snapshotId, { notes });
+
+      // Notify webview that notes were saved
+      this._panel.webview.postMessage({
+        command: "snapshotNotesSaved",
+        snapshotId: snapshotId,
+        notes: notes,
+      });
+
+      console.log("[WebviewPanel] Snapshot notes updated:", snapshotId);
+    } catch (error) {
+      console.error("Error updating snapshot notes:", error);
+      vscode.window.showErrorMessage(
+        `Failed to save notes: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  private async updateSnapshotTags(snapshotId: string, tags: string[]) {
+    try {
+      if (!this._apiService.isAuthenticated()) {
+        vscode.window.showErrorMessage("Authentication required");
+        return;
+      }
+
+      await this._apiService.updateSnapshot(snapshotId, { tags });
+
+      // Notify webview that tags were saved
+      this._panel.webview.postMessage({
+        command: "snapshotTagsUpdated",
+        snapshotId: snapshotId,
+        tags: tags,
+      });
+
+      console.log("[WebviewPanel] Snapshot tags updated:", snapshotId, tags);
+    } catch (error) {
+      console.error("Error updating snapshot tags:", error);
+      vscode.window.showErrorMessage(
+        `Failed to save tags: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 

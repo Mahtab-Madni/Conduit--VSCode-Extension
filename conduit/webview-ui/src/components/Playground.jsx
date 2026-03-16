@@ -61,6 +61,11 @@ const Playground = ({ route, onSendRequest }) => {
   const [userEditedUrl, setUserEditedUrl] = useState(false);
   const [copiedCurl, setCopiedCurl] = useState(false);
 
+  // Checkpoint states
+  const [showCheckpointModal, setShowCheckpointModal] = useState(false);
+  const [checkpointLabel, setCheckpointLabel] = useState("");
+  const [checkpointLoading, setCheckpointLoading] = useState(false);
+
   // AI Prediction states
   const [prediction, setPrediction] = useState(null);
   const [isPredictionLoading, setIsPredictionLoading] = useState(false);
@@ -465,6 +470,50 @@ const Playground = ({ route, onSendRequest }) => {
     });
   };
 
+  const handleSaveCheckpoint = async () => {
+    if (!checkpointLabel.trim()) {
+      alert("Please enter a checkpoint label (like a git commit message)");
+      return;
+    }
+
+    if (!vscode) {
+      alert("VS Code API not available");
+      return;
+    }
+
+    setCheckpointLoading(true);
+    try {
+      const parsedPayload = useFormMode
+        ? formPayload
+        : payload
+          ? JSON.parse(payload || "{}")
+          : {};
+
+      vscode.postMessage({
+        command: "saveCheckpoint",
+        route: route,
+        label: checkpointLabel.trim(),
+        payload: parsedPayload,
+        response: {
+          statusCode: response?.status,
+          body: response?.data,
+          responseTime: response?.endTime - response?.startTime,
+          testedAt: new Date().toISOString(),
+        },
+      });
+
+      // Reset modal
+      setShowCheckpointModal(false);
+      setCheckpointLabel("");
+      alert("Checkpoint saved successfully!");
+    } catch (error) {
+      console.error("Error saving checkpoint:", error);
+      alert("Failed to save checkpoint: " + error.message);
+    } finally {
+      setCheckpointLoading(false);
+    }
+  };
+
   const handleFormPayloadChange = (newPayload) => {
     setFormPayload(newPayload);
     setPayload(JSON.stringify(newPayload, null, 2));
@@ -511,6 +560,59 @@ const Playground = ({ route, onSendRequest }) => {
 
   return (
     <div className="playground">
+      {/* Checkpoint Modal */}
+      {showCheckpointModal && (
+        <div
+          className="checkpoint-modal-overlay"
+          onClick={() => setShowCheckpointModal(false)}
+        >
+          <div
+            className="checkpoint-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="modal-title">Save Checkpoint</h3>
+            <p className="modal-description">
+              Enter a message describing this checkpoint (like a git commit
+              message):
+            </p>
+            <input
+              type="text"
+              className="checkpoint-input"
+              placeholder="e.g., added shippingAddress field to payload validation"
+              value={checkpointLabel}
+              onChange={(e) => setCheckpointLabel(e.target.value)}
+              onKeyPress={(e) => {
+                if (
+                  e.key === "Enter" &&
+                  checkpointLabel.trim() &&
+                  !checkpointLoading
+                ) {
+                  handleSaveCheckpoint();
+                }
+              }}
+              disabled={checkpointLoading}
+              autoFocus
+            />
+            <div className="modal-actions">
+              <button
+                className="btn-secondary"
+                onClick={() => setShowCheckpointModal(false)}
+                disabled={checkpointLoading}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn-primary"
+                onClick={handleSaveCheckpoint}
+                disabled={checkpointLoading || !checkpointLabel.trim()}
+              >
+                {checkpointLoading ? "Saving..." : "Save Checkpoint"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="playground-header">
         <div className="route-info">
           <div
@@ -595,6 +697,14 @@ const Playground = ({ route, onSendRequest }) => {
               ) : (
                 "Send"
               )}
+            </button>
+            <button
+              onClick={() => setShowCheckpointModal(true)}
+              disabled={isLoading || !route}
+              className="checkpoint-button-main"
+              title="Save a checkpoint (like a git commit)"
+            >
+              Mark Checkpoint
             </button>
             <button
               onClick={() => {
@@ -799,7 +909,21 @@ const Playground = ({ route, onSendRequest }) => {
         {/* Response */}
         {(response || isLoading) && (
           <div className="response-section">
-            <ResponseView response={response} isLoading={isLoading} />
+            <ResponseView
+              response={response}
+              isLoading={isLoading}
+              onCheckpoint={async (checkpointData) => {
+                if (vscode) {
+                  vscode.postMessage({
+                    command: "saveCheckpoint",
+                    route: route,
+                    label: checkpointData.label,
+                    payload: payload ? JSON.parse(payload) : {},
+                    response: checkpointData.response,
+                  });
+                }
+              }}
+            />
 
             {/* Error Suggestions */}
             {response && (response.status >= 400 || response.error) && (

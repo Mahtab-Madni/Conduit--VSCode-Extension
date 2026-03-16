@@ -334,3 +334,214 @@
   line-height: 1.4;
   overflow-x: auto;
 }
+
+/* Success Banner with Checkpoint Option */
+.success-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  background: linear-gradient(
+    135deg,
+    rgba(40, 167, 69, 0.15),
+    rgba(40, 167, 69, 0.08)
+  );
+  border-bottom: 1px solid rgba(40, 167, 69, 0.3);
+  border-top: 2px solid rgba(40, 167, 69, 0.4);
+  gap: 16px;
+}
+
+.banner-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.banner-message {
+  font-size: 13px;
+  font-weight: 600;
+  color: #28a745;
+  font-family: var(
+    --vscode-editor-font-family,
+    "SF Mono",
+    Monaco,
+    "Cascadia Code",
+    "Roboto Mono",
+    Consolas,
+    "Courier New",
+    monospace
+  );
+}
+
+.banner-text {
+  font-size: 12px;
+  color: rgba(40, 167, 69, 0.9);
+}
+
+.banner-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.checkpoint-btn {
+  padding: 6px 12px;
+  background-color: rgba(40, 167, 69, 0.2);
+  color: #28a745;
+  border: 1px solid rgba(40, 167, 69, 0.4);
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.checkpoint-btn:hover {
+  background-color: rgba(40, 167, 69, 0.3);
+  border-color: rgba(40, 167, 69, 0.6);
+  box-shadow: 0 2px 4px rgba(40, 167, 69, 0.15);
+}
+
+.checkpoint-btn:active {
+  transform: translateY(1px);
+}
+
+/* Checkpoint Modal */
+.checkpoint-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.checkpoint-modal {
+  background-color: var(--vscode-editor-background, #1e1e1e);
+  border: 1px solid var(--vscode-panel-border, #2d2d30);
+  border-radius: 8px;
+  padding: 24px;
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  animation: slideUp 0.2s ease;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.modal-title {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--vscode-editor-foreground, #d4d4d4);
+}
+
+.modal-description {
+  margin: 0 0 16px 0;
+  font-size: 13px;
+  color: var(--vscode-descriptionForeground, #cccccc99);
+  line-height: 1.4;
+}
+
+.checkpoint-input {
+  width: 100%;
+  padding: 10px 12px;
+  margin-bottom: 18px;
+  background-color: var(--vscode-input-background, #3c3c3c);
+  color: var(--vscode-input-foreground, #d4d4d4);
+  border: 1px solid var(--vscode-input-border, #555);
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: var(
+    --vscode-editor-font-family,
+    "SF Mono",
+    Monaco,
+    "Cascadia Code",
+    "Roboto Mono",
+    Consolas,
+    "Courier New",
+    monospace
+  );
+  transition: border-color 0.2s ease;
+  box-sizing: border-box;
+}
+
+.checkpoint-input:focus {
+  outline: none;
+  border-color: var(--vscode-inputValidation-infoBorder, #0078d4);
+  box-shadow: 0 0 0 1px var(--vscode-inputValidation-infoBorder, #0078d4);
+}
+
+.checkpoint-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.btn-secondary,
+.btn-primary {
+  padding: 8px 16px;
+  border: 1px solid var(--vscode-button-border, transparent);
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-secondary {
+  background-color: var(--vscode-button-secondaryBackground, #3e3e42);
+  color: var(--vscode-button-secondaryForeground, #d4d4d4);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: var(--vscode-button-secondaryHoverBackground, #4a4a4f);
+}
+
+.btn-primary {
+  background-color: var(--vscode-button-background, #0078d4);
+  color: var(--vscode-button-foreground, #ffffff);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--vscode-button-hoverBackground, #1084d7);
+}
+
+.btn-secondary:disabled,
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: translateY(1px);
+}

@@ -278,9 +278,7 @@ export class ConduitApiService {
 
   public getAuthUrl(): string {
     // Use a callback URL that will work better with browsers
-    const callbackUrl = encodeURIComponent(
-      `${this.baseUrl}/auth/success`,
-    );
+    const callbackUrl = encodeURIComponent(`${this.baseUrl}/auth/success`);
     const authUrl = `${this.baseUrl}/auth/github?callback=${callbackUrl}`;
     console.log("[Conduit] Generated auth URL:", authUrl);
     return authUrl;
@@ -377,6 +375,37 @@ export class ConduitApiService {
     });
   }
 
+  /**
+   * Save a checkpoint - intentional, user-controlled snapshot
+   * This is different from auto-snapshots and requires a label (like git commit)
+   */
+  public async saveCheckpoint(checkpointData: {
+    routeId: string;
+    routePath: string;
+    method: string;
+    code: string;
+    label: string;
+    lastPayload?: any;
+    lastResponse?: any;
+    filePath: string;
+    metadata?: any;
+  }): Promise<any> {
+    // Generate code hash
+    const codeHash = createHash("md5")
+      .update(checkpointData.code)
+      .digest("hex");
+
+    const payload = {
+      ...checkpointData,
+      codeHash,
+    };
+
+    return this.makeRequest("/api/snapshots/checkpoint", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
   public async getRouteHistory(
     routeId: string,
     limit: number = 20,
@@ -404,6 +433,33 @@ export class ConduitApiService {
     return this.makeRequest("/api/snapshots/diff", {
       method: "POST",
       body: JSON.stringify({ snapshotId1, snapshotId2 }),
+    });
+  }
+
+  public async restoreSnapshot(snapshotId: string): Promise<{
+    success: boolean;
+    data: {
+      id: string;
+      routePath: string;
+      method: string;
+      code: string;
+      predictedPayload: any;
+      filePath: string;
+      createdAt: string;
+      notes: string;
+      tags: string[];
+    };
+  }> {
+    return this.makeRequest(`/api/snapshots/${snapshotId}/restore`);
+  }
+
+  public async updateSnapshot(
+    snapshotId: string,
+    updates: { tags?: string[]; notes?: string; description?: string },
+  ): Promise<any> {
+    return this.makeRequest(`/api/snapshots/${snapshotId}`, {
+      method: "PATCH",
+      body: JSON.stringify(updates),
     });
   }
 
