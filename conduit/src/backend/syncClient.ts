@@ -1,5 +1,5 @@
 
-const BACKEND_URL = "http://localhost:3002";
+const BACKEND_URL = "https://conduit-backend-kappa.vercel.app";
 
 export class SyncClient {
   private static instance: SyncClient;

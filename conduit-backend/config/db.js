@@ -10,28 +10,49 @@ dns.setServers(["8.8.8.8", "8.8.4.4", "1.1.1.1"]); // Use Google & Cloudflare DN
 
 const { connect, connection } = mongoose;
 
-// MongoDB connection options with Stable API
+// Connection cache for serverless optimization
+let cachedConnection = null;
+
+// MongoDB connection options with Stable API - Optimized for Vercel
 const clientOptions = {
   serverApi: {
     version: "1",
     strict: true,
     deprecationErrors: true,
   },
-  // DNS resolution options for Windows compatibility
-  family: 4, // Force IPv4
-  serverSelectionTimeoutMS: 10000,
+  // Connection pooling for serverless
+  maxPoolSize: 5, // Reduced for Vercel limits
+  minPoolSize: 1,
+  maxIdleTimeMS: 45000,
   socketTimeoutMS: 45000,
+  serverSelectionTimeoutMS: 5000,
+  family: 4, // Force IPv4
 };
 
-// Database connection function
+// Database connection function with caching for serverless
 export const connectDB = async () => {
+  // Return cached connection if available
+  if (cachedConnection) {
+    console.log("Using cached MongoDB connection");
+    return cachedConnection;
+  }
+
   try {
-    await connect(process.env.MONGODB_URI, clientOptions);
+    const mongoConnection = await connect(
+      process.env.MONGODB_URI,
+      clientOptions,
+    );
+
+    // Cache the connection
+    cachedConnection = mongoConnection;
+
     // Ping the database to verify connection
     await connection.db.admin().command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!",
     );
+
+    return mongoConnection;
   } catch (err) {
     console.error("MongoDB connection error:", err);
     // Don't exit immediately, allow server to continue running
@@ -39,11 +60,14 @@ export const connectDB = async () => {
   }
 };
 
-// Graceful shutdown function
+// Graceful shutdown function (called on process termination)
 export const gracefulShutdown = async () => {
   try {
-    await connection.close();
-    console.log("MongoDB connection closed");
+    if (cachedConnection) {
+      await connection.close();
+      cachedConnection = null;
+      console.log("MongoDB connection closed");
+    }
   } catch (err) {
     console.error("Error closing MongoDB connection:", err);
   }

@@ -279,7 +279,7 @@ export class ConduitApiService {
   public getAuthUrl(): string {
     // Use a callback URL that will work better with browsers
     const callbackUrl = encodeURIComponent(
-      "http://localhost:3002/auth/success",
+      `${this.baseUrl}/auth/success`,
     );
     const authUrl = `${this.baseUrl}/auth/github?callback=${callbackUrl}`;
     console.log("[Conduit] Generated auth URL:", authUrl);

@@ -1,11 +1,9 @@
 import dotenv from "dotenv";
 import express, { json, urlencoded } from "express";
 import cors from "cors";
-import passport from "passport";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
-import { connectDB, gracefulShutdown } from "./config/db.js";
-import { configurePassport } from "./middleware/passport.js";
+import { connectDB } from "./config/db.js";
 import { errorHandler, notFoundHandler } from "./middleware/error.js";
 import {
   authRouter,
@@ -22,9 +20,6 @@ const PORT = process.env.PORT || 3002;
 
 // Database connection
 connectDB();
-
-// Configure passport
-configurePassport();
 
 // Security middleware
 app.use(
@@ -62,9 +57,6 @@ app.use(
 app.use(json({ limit: "10mb" }));
 app.use(urlencoded({ extended: true }));
 
-// Passport initialization
-app.use(passport.initialize());
-
 // Health check
 app.get("/health", (req, res) => {
   res.json({ status: "OK", timestamp: new Date().toISOString() });
@@ -83,18 +75,9 @@ app.use(errorHandler);
 // 404 handler (must be after all routes)
 app.use(notFoundHandler);
 
-// Graceful shutdown
-process.on("SIGTERM", async () => {
-  console.log("Shutting down gracefully...");
-  await gracefulShutdown();
-  process.exit(0);
-});
-
 app.listen(PORT, () => {
   console.log(`Conduit Backend running on port ${PORT}`);
-  console.log(
-    `MongoDB URI: ${process.env.MONGODB_URI}`,
-  );
+  console.log(`MongoDB URI: ${process.env.MONGODB_URI}`);
 });
 
 export default app;

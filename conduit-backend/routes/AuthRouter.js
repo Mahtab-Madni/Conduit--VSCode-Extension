@@ -1,6 +1,10 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
-import {login} from "../controllers/AuthController.js";
+import {
+  login,
+  githubAuth,
+  githubCallback,
+} from "../controllers/AuthController.js";
 
 const authRouter = Router();
 
@@ -11,6 +15,7 @@ const authLimiter = rateLimit({
 });
 
 authRouter.post("/vscode", authLimiter, login);
-
+authRouter.get("/github", githubAuth);
+authRouter.get("/github/callback", githubCallback);
 
 export default authRouter;
