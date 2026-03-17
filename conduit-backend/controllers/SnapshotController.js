@@ -293,7 +293,12 @@ export const diffSnapshots = async (req, res) => {
       summary: formattedChanges,
     };
 
-    res.json(diff);
+    // Return both snapshots and the diff
+    res.json({
+      snapshot1: snapshot1.toObject ? snapshot1.toObject() : snapshot1,
+      snapshot2: snapshot2.toObject ? snapshot2.toObject() : snapshot2,
+      ...diff,
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

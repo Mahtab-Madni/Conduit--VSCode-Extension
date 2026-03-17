@@ -13,17 +13,39 @@ const DiffView = ({ snapshot1, snapshot2, diff, onClose }) => {
     return new Date(dateString).toLocaleString();
   };
 
+  const getTimeDifference = () => {
+    const time1 = new Date(snapshot1.createdAt).getTime();
+    const time2 = new Date(snapshot2.createdAt).getTime();
+    const diffMs = Math.abs(time2 - time1);
+    const diffSecs = Math.floor(diffMs / 1000);
+    const diffMins = Math.floor(diffSecs / 60);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffDays > 0) {
+      return `${diffDays} day${diffDays > 1 ? "s" : ""} apart`;
+    } else if (diffHours > 0) {
+      return `${diffHours} hour${diffHours > 1 ? "s" : ""} apart`;
+    } else if (diffMins > 0) {
+      return `${diffMins} minute${diffMins > 1 ? "s" : ""} apart`;
+    } else {
+      return `${diffSecs} second${diffSecs > 1 ? "s" : ""} apart`;
+    }
+  };
+
   const renderPayloadDiff = () => {
-    if (!diff.payload || !diff.payload.changed) {
+    const oldPayload = diff.payload?.old || {};
+    const newPayload = diff.payload?.new || {};
+    const hasPayloads =
+      Object.keys(oldPayload).length > 0 || Object.keys(newPayload).length > 0;
+
+    if (!hasPayloads) {
       return (
         <div className="no-changes">
-          <p>No changes in payload structure</p>
+          <p>No payload data available</p>
         </div>
       );
     }
-
-    const oldPayload = diff.payload.old || {};
-    const newPayload = diff.payload.new || {};
 
     // Simple diff algorithm
     const allKeys = new Set([
@@ -76,7 +98,7 @@ const DiffView = ({ snapshot1, snapshot2, diff, onClose }) => {
         <div className="unified-diff">
           <div className="changes-list">
             {changes.length === 0 ? (
-              <p>No structural changes detected</p>
+              <p>Payloads are identical</p>
             ) : (
               changes.map((change, index) => (
                 <div key={index} className={`change-item ${change.type}`}>
@@ -126,16 +148,19 @@ const DiffView = ({ snapshot1, snapshot2, diff, onClose }) => {
   };
 
   const renderCodeDiff = () => {
-    if (!diff.code || !diff.code.changed) {
+    const oldCode = diff.code?.old || "";
+    const newCode = diff.code?.new || "";
+
+    if (!oldCode && !newCode) {
       return (
         <div className="no-changes">
-          <p>No changes in code</p>
+          <p>No code available</p>
         </div>
       );
     }
 
-    const oldLines = diff.code.old.split("\n");
-    const newLines = diff.code.new.split("\n");
+    const oldLines = oldCode.split("\n");
+    const newLines = newCode.split("\n");
 
     if (showSideBySide) {
       return (
@@ -234,20 +259,39 @@ const DiffView = ({ snapshot1, snapshot2, diff, onClose }) => {
             <div className="snapshot-card old">
               <h4>Before</h4>
               <p>{formatDate(snapshot1.createdAt)}</p>
-              {snapshot1.metadata?.framework && (
-                <span className="framework-badge">
-                  {snapshot1.metadata.framework}
+              {snapshot1.lastResponse ? (
+                <span
+                  className={`status-badge status-${Math.floor(snapshot1.lastResponse.statusCode || snapshot1.lastResponse.status || 0 / 100)}`}
+                >
+                  {snapshot1.lastResponse.statusCode ||
+                    snapshot1.lastResponse.status}
                 </span>
+              ) : (
+                <span className="status-badge status-none">No Response</span>
+              )}
+              {snapshot1.label && (
+                <p className="snapshot-label">{snapshot1.label}</p>
               )}
             </div>
-            <div className="diff-arrow">→</div>
+            <div className="diff-arrow">
+              <span>→</span>
+              <p className="time-difference">{getTimeDifference()}</p>
+            </div>
             <div className="snapshot-card new">
               <h4>After</h4>
               <p>{formatDate(snapshot2.createdAt)}</p>
-              {snapshot2.metadata?.framework && (
-                <span className="framework-badge">
-                  {snapshot2.metadata.framework}
+              {snapshot2.lastResponse ? (
+                <span
+                  className={`status-badge status-${Math.floor(snapshot2.lastResponse.statusCode || snapshot2.lastResponse.status || 0 / 100)}`}
+                >
+                  {snapshot2.lastResponse.statusCode ||
+                    snapshot2.lastResponse.status}
                 </span>
+              ) : (
+                <span className="status-badge status-none">No Response</span>
+              )}
+              {snapshot2.label && (
+                <p className="snapshot-label">{snapshot2.label}</p>
               )}
             </div>
           </div>

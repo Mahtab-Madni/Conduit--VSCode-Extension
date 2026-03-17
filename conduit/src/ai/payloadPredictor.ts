@@ -99,8 +99,29 @@ export class PayloadPredictor {
       console.warn("Error reading package.json for port detection:", error);
     }
 
-    // 2. Check common server files for port configuration
-    const serverFiles = [
+    // 2. Check package.json "main" field first for the entry point
+    let serverFiles: string[] = [];
+    try {
+      const packageJsonPath = path.join(workspaceRoot, "package.json");
+      if (fs.existsSync(packageJsonPath)) {
+        const packageJson = JSON.parse(
+          fs.readFileSync(packageJsonPath, "utf-8"),
+        );
+
+        // If "main" field exists, use it as the primary server file
+        if (packageJson.main) {
+          serverFiles.push(packageJson.main);
+          console.log(
+            `Using main entry point from package.json: ${packageJson.main}`,
+          );
+        }
+      }
+    } catch (error) {
+      console.warn("Error reading main field from package.json:", error);
+    }
+
+    // Fall back to common server files
+    const commonServerFiles = [
       "server.js",
       "app.js",
       "index.js",
@@ -110,6 +131,8 @@ export class PayloadPredictor {
       "src/index.js",
       "src/main.js",
     ];
+
+    serverFiles = [...new Set([...serverFiles, ...commonServerFiles])]; // Remove duplicates while preserving order
 
     for (const file of serverFiles) {
       try {

@@ -1,4 +1,10 @@
 import * as vscode from "vscode";
+import { parse } from "@babel/parser";
+import traverse, { NodePath } from "@babel/traverse";
+import {
+  Node,
+  FunctionDeclaration,
+} from "@babel/types";
 import { DetectedRoute } from "../detection/routeDetection";
 import { PayloadPredictor } from "../ai/payloadPredictor";
 import { getMongoConnector, initializeMongoDB } from "../db/mongoConnector";
@@ -851,24 +857,79 @@ export class ConduitPanel {
         route.filePath,
       );
 
-      // Read the current file content for the code snapshot
+      // Determine which file to use for code and extract the specific controller function
+      let codeFilePath = route.filePath;
       let fileContent = "";
+      let extractedFunctionCode: string | null = null;
+
+      // First, read the route file
       try {
         const fileUri = vscode.Uri.file(route.filePath);
         const fileBytes = await vscode.workspace.fs.readFile(fileUri);
         fileContent = new TextDecoder().decode(fileBytes);
       } catch (readError) {
-        console.warn(
-          "[WebviewPanel] Could not read file for checkpoint:",
-          readError,
+        console.warn("[WebviewPanel] Could not read route file:", readError);
+        fileContent = "";
+      }
+
+      // Try to extract controller function from same file first
+      if (fileContent && route.handler) {
+        console.log(
+          `[WebviewPanel] Attempting to extract controller "${route.handler}" from route file`,
         );
-        fileContent = ""; // Allow checkpoint to proceed without file content
+        extractedFunctionCode = this.extractControllerFunctionCode(
+          fileContent,
+          route.handler,
+          route.filePath,
+        );
+        if (extractedFunctionCode) {
+          console.log(
+            `[WebviewPanel] Successfully extracted controller function from route file`,
+          );
+          fileContent = extractedFunctionCode;
+        }
+      }
+
+      // Try to extract from separate controller file if both path and function name exist
+      if (
+        !extractedFunctionCode &&
+        route.controllerFilePath &&
+        route.controllerFunction
+      ) {
+        console.log(
+          `[WebviewPanel] Attempting to extract controller "${route.controllerFunction}" from separate file: ${route.controllerFilePath}`,
+        );
+        try {
+          const fileUri = vscode.Uri.file(route.controllerFilePath);
+          const fileBytes = await vscode.workspace.fs.readFile(fileUri);
+          const controllerFileContent = new TextDecoder().decode(fileBytes);
+
+          extractedFunctionCode = this.extractControllerFunctionCode(
+            controllerFileContent,
+            route.controllerFunction,
+            route.controllerFilePath,
+          );
+
+          if (extractedFunctionCode) {
+            console.log(
+              `[WebviewPanel] Successfully extracted controller function from separate file`,
+            );
+            fileContent = extractedFunctionCode;
+            codeFilePath = route.controllerFilePath;
+          }
+        } catch (readError) {
+          console.warn(
+            "[WebviewPanel] Could not read controller file for checkpoint:",
+            readError,
+          );
+        }
       }
 
       console.log("[WebviewPanel] Saving checkpoint:", {
         routePath: route.path,
         method: route.method,
         label: label.trim(),
+        filePath: codeFilePath,
       });
 
       const checkpointData = {
@@ -879,7 +940,8 @@ export class ConduitPanel {
         label: label.trim(),
         lastPayload: payload,
         lastResponse: response || {},
-        filePath: route.filePath,
+        filePath: codeFilePath,
+        fullPath: codeFilePath,
         metadata: {
           framework: "unknown",
         },
@@ -910,6 +972,113 @@ export class ConduitPanel {
         success: false,
         error: errorMessage,
       });
+    }
+  }
+
+  /**
+   * Extract a specific controller function code from file content using AST parsing
+   * Same logic as PayloadPredictor and SnapshotService
+   */
+  private extractControllerFunctionCode(
+    fileContent: string,
+    targetFunction: string,
+    filePath: string,
+  ): string | null {
+    try {
+      const ast = parse(fileContent, {
+        sourceType: "module",
+        plugins: [
+          "jsx",
+          "typescript",
+          "decorators-legacy",
+          "classProperties",
+          "objectRestSpread",
+          "asyncGenerators",
+          "functionBind",
+          "exportDefaultFrom",
+          "dynamicImport",
+        ],
+        allowImportExportEverywhere: true,
+        allowReturnOutsideFunction: true,
+      });
+
+      let controllerFunction: Node | null = null;
+      let startLine = 0;
+      let endLine = 0;
+
+      // Find the controller function using multiple patterns
+      traverse(ast, {
+        FunctionDeclaration: (path: NodePath<FunctionDeclaration>) => {
+          if (path.node.id?.name === targetFunction) {
+            controllerFunction = path.node;
+            startLine = path.node.loc?.start.line || 0;
+            endLine = path.node.loc?.end.line || 0;
+          }
+        },
+        VariableDeclarator: (path) => {
+          if (
+            path.node.id.type === "Identifier" &&
+            path.node.id.name === targetFunction &&
+            (path.node.init?.type === "ArrowFunctionExpression" ||
+              path.node.init?.type === "FunctionExpression")
+          ) {
+            controllerFunction = path.node.init;
+            startLine = path.node.loc?.start.line || 0;
+            endLine = path.node.loc?.end.line || 0;
+          }
+        },
+        // Handle exported functions like: exports.createUser = (req, res) => {}
+        AssignmentExpression: (path) => {
+          if (
+            path.node.left.type === "MemberExpression" &&
+            path.node.left.object.type === "Identifier" &&
+            (path.node.left.object.name === "exports" ||
+              path.node.left.object.name === "module") &&
+            path.node.left.property.type === "Identifier" &&
+            path.node.left.property.name === targetFunction &&
+            (path.node.right.type === "ArrowFunctionExpression" ||
+              path.node.right.type === "FunctionExpression")
+          ) {
+            controllerFunction = path.node.right;
+            startLine = path.node.loc?.start.line || 0;
+            endLine = path.node.loc?.end.line || 0;
+          }
+        },
+        // Handle object method definitions like: { createUser(req, res) {} }
+        ObjectMethod: (path) => {
+          if (
+            path.node.key.type === "Identifier" &&
+            path.node.key.name === targetFunction
+          ) {
+            controllerFunction = path.node;
+            startLine = path.node.loc?.start.line || 0;
+            endLine = path.node.loc?.end.line || 0;
+          }
+        },
+      });
+
+      if (!controllerFunction || startLine === 0 || endLine === 0) {
+        console.log(
+          `[WebviewPanel] Could not find function "${targetFunction}" in ${filePath}`,
+        );
+        return null;
+      }
+
+      // Extract the controller code
+      const lines = fileContent.split("\n");
+      const controllerCode = lines.slice(startLine - 1, endLine).join("\n");
+
+      console.log(
+        `[WebviewPanel] Extracted function "${targetFunction}" (lines ${startLine}-${endLine})`,
+      );
+
+      return controllerCode;
+    } catch (error) {
+      console.warn(
+        `[WebviewPanel] Error extracting controller function "${targetFunction}" from ${filePath}:`,
+        error,
+      );
+      return null;
     }
   }
 
@@ -952,10 +1121,18 @@ export class ConduitPanel {
         return;
       }
 
-      const diff = await this._apiService.compareSnapshots(
-        snapshotId1,
-        snapshotId2,
+      // Add timeout for comparing snapshots (30 seconds)
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error("Comparison timed out. Please try again.")),
+          30000,
+        ),
       );
+
+      const diff = await Promise.race([
+        this._apiService.compareSnapshots(snapshotId1, snapshotId2),
+        timeoutPromise,
+      ]);
 
       this._panel.webview.postMessage({
         command: "snapshotDiffResponse",

@@ -191,6 +191,25 @@ const Playground = ({ route, onSendRequest }) => {
       setFullUrl(fullPredictedUrl);
       setSuggestedUrl(fullPredictedUrl);
 
+      // Detect if route requires authentication based on middlewares
+      const authKeywords = [
+        "verify",
+        "auth",
+        "authenticate",
+        "protect",
+        "private",
+        "admin",
+        "permission",
+      ];
+      const needsAuth =
+        route.middlewares &&
+        route.middlewares.some((middleware) =>
+          authKeywords.some((keyword) =>
+            middleware.toLowerCase().includes(keyword),
+          ),
+        );
+      setRequiresAuth(needsAuth);
+
       // Auto-predict payload for POST/PUT/PATCH requests
       if (route.method !== "GET" && route.method !== "DELETE" && vscode) {
         // Small delay to ensure state is updated
@@ -238,7 +257,10 @@ const Playground = ({ route, onSendRequest }) => {
 
     const handlePredictionResult = (event) => {
       setPrediction(event.detail.prediction);
-      setRequiresAuth(event.detail.requiresAuth || false);
+      // Merge AI prediction requiresAuth with middleware-detected auth requirement
+      setRequiresAuth(
+        (prevRequired) => prevRequired || event.detail.requiresAuth || false,
+      );
       setIsPredictionLoading(false);
       setPredictionError(null);
 

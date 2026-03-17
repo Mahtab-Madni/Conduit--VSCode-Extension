@@ -70,8 +70,9 @@
 .route-info {
   display: flex;
   align-items: center;
+  max-height: 28px;
   gap: 8px;
-  padding: 8px 16px;
+  padding: 6px 16px;
   background: var(--vscode-editor-lineHighlightBackground);
   border-bottom: 1px solid var(--vscode-panel-border);
 }
@@ -79,9 +80,11 @@
 .method-badge {
   padding: 2px 6px;
   border-radius: 3px;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: bold;
   text-transform: uppercase;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .method-badge.get {
@@ -107,8 +110,12 @@
 
 .route-path {
   font-family: var(--vscode-editor-font-family);
-  font-size: 12px;
+  font-size: 11px;
   color: var(--vscode-textLink-foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
 }
 
 .diff-instructions {
@@ -199,8 +206,22 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--vscode-badge-background);
   border-radius: 50%;
+}
+
+.snapshot-icon.status-success {
+  color: #4caf50;
+  font-size: 14px;
+}
+
+.snapshot-icon.status-error {
+  color: #f44336;
+  font-size: 14px;
+}
+
+.snapshot-icon.status-none {
+  color: #9e9e9e;
+  font-size: 14px;
 }
 
 .timeline-content {
@@ -383,41 +404,36 @@
   }
 }
 
-/* Search and Filter */
-.history-search {
+/* Date Filter */
+.history-filters {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  gap: 4px;
   padding: 8px 16px;
   border-bottom: 1px solid var(--vscode-panel-border);
   background: var(--vscode-editor-lineHighlightBackground);
+  flex-wrap: wrap;
 }
 
-.search-input {
-  flex: 1;
-  padding: 6px 10px;
-  background: var(--vscode-input-background);
-  color: var(--vscode-input-foreground);
-  border: 1px solid var(--vscode-input-border);
+.filter-button {
+  padding: 4px 10px;
+  border: 1px solid var(--vscode-button-border);
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
   border-radius: 3px;
-  font-size: 12px;
-  font-family: var(--vscode-font-family);
-}
-
-.search-input:focus {
-  outline: none;
-  border-color: var(--vscode-focusBorder);
-  box-shadow: 0 0 0 1px var(--vscode-focusBorder);
-}
-
-.search-input::placeholder {
-  color: var(--vscode-input-placeholderForeground);
-}
-
-.search-results {
   font-size: 11px;
-  color: var(--vscode-descriptionForeground);
-  padding: 0 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.filter-button:hover {
+  background: var(--vscode-button-secondaryHoverBackground);
+}
+
+.filter-button.active {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  box-shadow: 0 1px 4px rgba(14, 99, 156, 0.3);
 }
 
 /* Tags Display */

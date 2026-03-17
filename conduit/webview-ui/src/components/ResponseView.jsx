@@ -110,7 +110,7 @@ const ResponseView = ({ response, isLoading, onCheckpoint }) => {
               className="checkpoint-btn"
               onClick={() => setShowCheckpointModal(true)}
             >
-              📸 Save as Checkpoint
+              Save as Checkpoint
             </button>
             {/* Dismiss is implicit - just don't click the button */}
           </div>
@@ -127,7 +127,7 @@ const ResponseView = ({ response, isLoading, onCheckpoint }) => {
             className="checkpoint-modal"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="modal-title">📸 Save Checkpoint</h3>
+            <h3 className="modal-title"> Save Checkpoint</h3>
             <p className="modal-description">
               Enter a message describing what this checkpoint captures (like a
               git commit message):

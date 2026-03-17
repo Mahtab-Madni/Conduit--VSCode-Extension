@@ -232,13 +232,11 @@ const RouteList = ({
               <div className="group-routes">
                 {groupRoutes.map((route, index) => {
                   const isSelected =
-                    selectedRoute &&
-                    selectedRoute.path === route.path &&
-                    selectedRoute.method === route.method;
+                    selectedRoute && selectedRoute.id === route.id;
 
                   return (
                     <div
-                      key={`${route.method}-${route.path}-${index}`}
+                      key={route.id}
                       className={`route-item ${isSelected ? "selected" : ""}`}
                       onClick={() => onSelectRoute(route)}
                     >

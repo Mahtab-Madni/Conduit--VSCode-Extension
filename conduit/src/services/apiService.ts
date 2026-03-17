@@ -9,7 +9,9 @@ export interface RouteSnapshot {
   routePath: string;
   method: string;
   filePath: string;
+  fullPath: string;
   lineNumber?: number;
+  middleware?: string[];
   code: string;
   codeHash: string;
   predictedPayload?: any;

@@ -2,6 +2,13 @@ import * as vscode from "vscode";
 import * as fs from "fs";
 import * as path from "path";
 import { createHash } from "crypto";
+import { parse } from "@babel/parser";
+import traverse, { NodePath } from "@babel/traverse";
+import {
+  Node,
+  FunctionDeclaration,
+  MemberExpression,
+} from "@babel/types";
 import { RouteDetector, DetectedRoute } from "../detection/routeDetection";
 import { PayloadPredictor } from "../ai/payloadPredictor";
 import { ConduitApiService, RouteSnapshot } from "./apiService";
@@ -373,6 +380,7 @@ export class SnapshotService {
         method: route.method,
         path: route.path,
         filePath: route.filePath,
+        controllerFilePath: route.controllerFilePath,
         routeId,
         codeHash: codeHash.substring(0, 8),
       });
@@ -416,16 +424,82 @@ export class SnapshotService {
       let predictedPayload;
       try {
         predictedPayload = await this.payloadPredictor.predict(route);
+        console.log("[SnapshotService] Predicted payload:", {
+          hasPrediction: !!predictedPayload,
+          fields: predictedPayload ? Object.keys(predictedPayload) : [],
+        });
       } catch (error: any) {
         console.warn("Failed to predict payload for route:", route.path, error);
+        predictedPayload = null;
       }
 
-      // Get file metadata
-      const stats = fs.statSync(route.filePath);
+      // Extract controller function code using AST parsing
+      // First try to find controller function in the same route file
+      let codeFilePath = route.filePath;
+      let codeToSnapshot = fileContent;
+      let extractedFunctionCode: string | null = null;
+
+      // Try to extract from same file first
+      console.log(
+        `[SnapshotService] Attempting to extract controller "${route.handler}" from same file`,
+      );
+      extractedFunctionCode = this.extractControllerFunctionCode(
+        fileContent,
+        route.handler,
+        route.filePath,
+      );
+
+      if (extractedFunctionCode) {
+        console.log(
+          `[SnapshotService] Successfully extracted controller function from same file`,
+        );
+        codeToSnapshot = extractedFunctionCode;
+      } else {
+        // Try to extract from separate controller file if both path and function name exist
+        if (
+          route.controllerFilePath &&
+          route.controllerFunction
+        ) {
+          console.log(
+            `[SnapshotService] Attempting to extract controller "${route.controllerFunction}" from separate file: ${route.controllerFilePath}`,
+          );
+          try {
+            const controllerFileContent = fs.readFileSync(
+              route.controllerFilePath,
+              "utf-8",
+            );
+            extractedFunctionCode = this.extractControllerFunctionCode(
+              controllerFileContent,
+              route.controllerFunction,
+              route.controllerFilePath,
+            );
+
+            if (extractedFunctionCode) {
+              console.log(
+                `[SnapshotService] Successfully extracted controller function from separate file`,
+              );
+              codeToSnapshot = extractedFunctionCode;
+              codeFilePath = route.controllerFilePath;
+            }
+          } catch (error) {
+            console.warn(
+              "[SnapshotService] Could not read or extract from controller file, using route file instead:",
+              error,
+            );
+          }
+        } else {
+          console.log(
+            `[SnapshotService] No separate controller file detected, using entire route file content`,
+          );
+        }
+      }
+
+      // Get file metadata from the code file being snapshot
+      const stats = fs.statSync(codeFilePath);
       const metadata = {
         fileSize: stats.size,
         totalRoutes: 1, // Will be updated on backend
-        framework: this.detectFramework(route.filePath, fileContent),
+        framework: this.detectFramework(codeFilePath, codeToSnapshot),
       };
 
       // Create snapshot data
@@ -433,19 +507,25 @@ export class SnapshotService {
         routeId,
         routePath: route.path,
         method: route.method,
-        filePath: route.filePath,
+        filePath: codeFilePath,
         lineNumber: route.line,
-        code: fileContent,
-        codeHash,
+        code: codeToSnapshot,
+        codeHash: createHash("md5").update(codeToSnapshot).digest("hex"),
         predictedPayload,
         metadata,
+        fullPath: codeFilePath,
+        middleware: route.middlewares || [],
       };
 
       console.log("[SnapshotService] Sending snapshot to backend:", {
         routeId: snapshotData.routeId,
         method: snapshotData.method,
         path: snapshotData.routePath,
-        codeHashStart: codeHash.substring(0, 8),
+        filePath: snapshotData.filePath,
+        lineNumber: snapshotData.lineNumber,
+        middleware: snapshotData.middleware,
+        hasPredictedPayload: !!snapshotData.predictedPayload,
+        codeHashStart: snapshotData.codeHash?.substring(0, 8),
       });
 
       // Send to backend
@@ -515,6 +595,113 @@ export class SnapshotService {
     }
 
     return "unknown";
+  }
+
+  /**
+   * Extract a specific controller function code from file content using AST parsing
+   * Similar to PayloadPredictor's logic
+   */
+  private extractControllerFunctionCode(
+    fileContent: string,
+    targetFunction: string,
+    filePath: string,
+  ): string | null {
+    try {
+      const ast = parse(fileContent, {
+        sourceType: "module",
+        plugins: [
+          "jsx",
+          "typescript",
+          "decorators-legacy",
+          "classProperties",
+          "objectRestSpread",
+          "asyncGenerators",
+          "functionBind",
+          "exportDefaultFrom",
+          "dynamicImport",
+        ],
+        allowImportExportEverywhere: true,
+        allowReturnOutsideFunction: true,
+      });
+
+      let controllerFunction: Node | null = null;
+      let startLine = 0;
+      let endLine = 0;
+
+      // Find the controller function using multiple patterns
+      traverse(ast, {
+        FunctionDeclaration: (path: NodePath<FunctionDeclaration>) => {
+          if (path.node.id?.name === targetFunction) {
+            controllerFunction = path.node;
+            startLine = path.node.loc?.start.line || 0;
+            endLine = path.node.loc?.end.line || 0;
+          }
+        },
+        VariableDeclarator: (path) => {
+          if (
+            path.node.id.type === "Identifier" &&
+            path.node.id.name === targetFunction &&
+            (path.node.init?.type === "ArrowFunctionExpression" ||
+              path.node.init?.type === "FunctionExpression")
+          ) {
+            controllerFunction = path.node.init;
+            startLine = path.node.loc?.start.line || 0;
+            endLine = path.node.loc?.end.line || 0;
+          }
+        },
+        // Handle exported functions like: exports.createUser = (req, res) => {}
+        AssignmentExpression: (path) => {
+          if (
+            path.node.left.type === "MemberExpression" &&
+            path.node.left.object.type === "Identifier" &&
+            (path.node.left.object.name === "exports" ||
+              path.node.left.object.name === "module") &&
+            path.node.left.property.type === "Identifier" &&
+            path.node.left.property.name === targetFunction &&
+            (path.node.right.type === "ArrowFunctionExpression" ||
+              path.node.right.type === "FunctionExpression")
+          ) {
+            controllerFunction = path.node.right;
+            startLine = path.node.loc?.start.line || 0;
+            endLine = path.node.loc?.end.line || 0;
+          }
+        },
+        // Handle object method definitions like: { createUser(req, res) {} }
+        ObjectMethod: (path) => {
+          if (
+            path.node.key.type === "Identifier" &&
+            path.node.key.name === targetFunction
+          ) {
+            controllerFunction = path.node;
+            startLine = path.node.loc?.start.line || 0;
+            endLine = path.node.loc?.end.line || 0;
+          }
+        },
+      });
+
+      if (!controllerFunction || startLine === 0 || endLine === 0) {
+        console.log(
+          `[SnapshotService] Could not find function "${targetFunction}" in ${filePath}`,
+        );
+        return null;
+      }
+
+      // Extract the controller code
+      const lines = fileContent.split("\n");
+      const controllerCode = lines.slice(startLine - 1, endLine).join("\n");
+
+      console.log(
+        `[SnapshotService] Extracted function "${targetFunction}" (lines ${startLine}-${endLine})`,
+      );
+
+      return controllerCode;
+    } catch (error) {
+      console.warn(
+        `[SnapshotService] Error extracting controller function "${targetFunction}" from ${filePath}:`,
+        error,
+      );
+      return null;
+    }
   }
 
   public async forceSnapshotCurrentFile(): Promise<void> {
@@ -605,6 +792,7 @@ export class SnapshotService {
     label: string,
     lastPayload?: any,
     lastResponse?: any,
+    filePath?: string,
   ): Promise<boolean> {
     if (!(await this.apiService.isAuthenticated())) {
       vscode.window.showErrorMessage(
@@ -621,9 +809,9 @@ export class SnapshotService {
     }
 
     try {
-      // Get the current file path for this route
-      const editor = vscode.window.activeTextEditor;
-      const filePath = editor?.document.fileName || "";
+      // Use provided filePath or get from current editor
+      const codeFilePath =
+        filePath || vscode.window.activeTextEditor?.document.fileName || "";
 
       const checkpointData = {
         routeId,
@@ -633,9 +821,10 @@ export class SnapshotService {
         label: label.trim(),
         lastPayload,
         lastResponse,
-        filePath,
+        filePath: codeFilePath,
+        fullPath: codeFilePath,
         metadata: {
-          framework: this.detectFramework(filePath, code),
+          framework: this.detectFramework(codeFilePath, code),
         },
       };
 
@@ -643,6 +832,7 @@ export class SnapshotService {
         routePath,
         method,
         label: label.trim(),
+        filePath: codeFilePath,
       });
 
       const response = await this.apiService.saveCheckpoint(checkpointData);
@@ -674,14 +864,76 @@ export class SnapshotService {
         route.filePath,
       );
 
-      const routeCode = this.extractRouteCode(fileContent, route);
+      // Extract controller function code using AST parsing
+      // First try to find controller function in the same route file
+      let codeFilePath = route.filePath;
+      let codeToCheckpoint = fileContent;
+      let extractedFunctionCode: string | null = null;
+
+      // Try to extract from same file first
+      console.log(
+        `[SnapshotService] Attempting to extract controller "${route.handler}" from route file for checkpoint`,
+      );
+      extractedFunctionCode = this.extractControllerFunctionCode(
+        fileContent,
+        route.handler,
+        route.filePath,
+      );
+
+      if (extractedFunctionCode) {
+        console.log(
+          `[SnapshotService] Successfully extracted controller function from route file for checkpoint`,
+        );
+        codeToCheckpoint = extractedFunctionCode;
+      } else {
+        // Try to extract from separate controller file if both path and function name exist
+        if (
+          route.controllerFilePath &&
+          route.controllerFunction
+        ) {
+          console.log(
+            `[SnapshotService] Attempting to extract controller "${route.controllerFunction}" from separate file for checkpoint: ${route.controllerFilePath}`,
+          );
+          try {
+            const controllerFileContent = fs.readFileSync(
+              route.controllerFilePath,
+              "utf-8",
+            );
+            extractedFunctionCode = this.extractControllerFunctionCode(
+              controllerFileContent,
+              route.controllerFunction,
+              route.controllerFilePath,
+            );
+
+            if (extractedFunctionCode) {
+              console.log(
+                `[SnapshotService] Successfully extracted controller function from separate file for checkpoint`,
+              );
+              codeToCheckpoint = extractedFunctionCode;
+              codeFilePath = route.controllerFilePath;
+            }
+          } catch (error) {
+            console.warn(
+              "[SnapshotService] Could not read or extract from controller file for checkpoint, using route file instead:",
+              error,
+            );
+          }
+        } else {
+          console.log(
+            `[SnapshotService] No separate controller file detected, using entire route file content for checkpoint`,
+          );
+        }
+      }
 
       const success = await this.saveCheckpoint(
         routeId,
         route.path,
         route.method,
-        routeCode,
+        codeToCheckpoint,
         label,
+        undefined,
+        undefined,
+        codeFilePath,
       );
 
       if (success) {

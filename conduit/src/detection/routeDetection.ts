@@ -14,6 +14,7 @@ import {
 } from "@babel/types";
 
 export interface DetectedRoute {
+  id: string;
   method: string;
   path: string;
   filePath: string;
@@ -31,6 +32,8 @@ export class RouteDetector {
   private routerPrefixes: Map<string, string> = new Map();
   private controllerImports: Map<string, string> = new Map();
   private functionImports: Map<string, string> = new Map();
+  private routerExports: Map<string, string> = new Map(); // router variable name -> file path
+  private filePrefixes: Map<string, string> = new Map(); // source file path -> mount prefix
 
   constructor(private workspaceRoot: string) {}
 
@@ -39,13 +42,50 @@ export class RouteDetector {
     this.routerPrefixes.clear();
     this.controllerImports.clear();
     this.functionImports.clear();
+    this.routerExports.clear();
+    this.filePrefixes.clear();
 
     // Find all JavaScript/TypeScript files that might contain routes
     const files = await this.findRouteFiles();
 
+    // First pass: detect router exports from all files
+    console.log("[RouteDetector] Pass 1: Detecting router exports...");
+    for (const file of files) {
+      await this.detectRouterExports(file);
+    }
+
+    // Second pass: detect app.use() calls in main files and extract prefixes
+    // This MUST happen before parsing routes so prefixes are available
+    console.log("[RouteDetector] Pass 2: Detecting app prefixes...");
+    for (const file of files) {
+      if (
+        file.endsWith("index.js") ||
+        file.endsWith("app.js") ||
+        file.endsWith("server.js")
+      ) {
+        await this.detectAppPrefixes(file);
+      }
+    }
+
+    // Third pass: detect route definitions (now with prefixes available)
+    console.log("[RouteDetector] Pass 3: Parsing route definitions...");
     for (const file of files) {
       await this.parseFileForRoutes(file);
     }
+
+    // Log the detected mappings
+    console.log("\n[RouteDetector] Route Detection Summary:");
+    console.log("[RouteDetector] ─────────────────────────");
+    console.log("[RouteDetector] Router Exports:");
+    this.routerExports.forEach((filePath, routerName) => {
+      console.log(`  ${routerName} -> ${filePath}`);
+    });
+    console.log("[RouteDetector] File Prefixes:");
+    this.filePrefixes.forEach((prefix, filePath) => {
+      console.log(`  ${filePath} -> ${prefix}`);
+    });
+    console.log(`[RouteDetector] Total Routes Found: ${this.routes.length}`);
+    console.log("[RouteDetector] ─────────────────────────\n");
 
     return this.routes;
   }
@@ -78,6 +118,177 @@ export class RouteDetector {
     }
 
     return [...new Set(files)];
+  }
+
+  private async detectRouterExports(filePath: string): Promise<void> {
+    try {
+      const content = fs.readFileSync(filePath, "utf-8");
+      const ast = parse(content, {
+        sourceType: "module",
+        plugins: [
+          "jsx",
+          "typescript",
+          "decorators-legacy",
+          "classProperties",
+          "objectRestSpread",
+        ],
+        allowImportExportEverywhere: true,
+        allowReturnOutsideFunction: true,
+      });
+
+      // Look for module.exports = router or export default router patterns
+      traverse(ast, {
+        ExportDefaultDeclaration: (path) => {
+          if (path.node.declaration.type === "Identifier") {
+            const routerName = (path.node.declaration as any).name;
+            if (
+              routerName.toLowerCase().includes("router") ||
+              routerName.toLowerCase().includes("route")
+            ) {
+              console.log(
+                `[RouteDetector] Found export default ${routerName} in ${filePath}`,
+              );
+              this.routerExports.set(routerName, filePath);
+            }
+          }
+        },
+        AssignmentExpression: (path) => {
+          if (
+            path.node.left.type === "MemberExpression" &&
+            (path.node.left as any).property.name === "exports" &&
+            path.node.right.type === "Identifier"
+          ) {
+            const routerName = (path.node.right as any).name;
+            if (
+              routerName.toLowerCase().includes("router") ||
+              routerName.toLowerCase().includes("route")
+            ) {
+              console.log(
+                `[RouteDetector] Found module.exports = ${routerName} in ${filePath}`,
+              );
+              this.routerExports.set(routerName, filePath);
+            }
+          }
+        },
+        VariableDeclarator: (path) => {
+          if (path.node.id.type === "Identifier") {
+            const varName = (path.node.id as any).name;
+            if (
+              varName.toLowerCase().includes("router") ||
+              varName.toLowerCase().includes("route")
+            ) {
+              if (!this.routerExports.has(varName)) {
+                console.log(
+                  `[RouteDetector] Found router variable ${varName} in ${filePath}`,
+                );
+                this.routerExports.set(varName, filePath);
+              }
+            }
+          }
+        },
+      });
+    } catch (error) {
+      console.warn(`Error detecting router exports in ${filePath}:`, error);
+    }
+  }
+
+  private async detectAppPrefixes(filePath: string): Promise<void> {
+    try {
+      const content = fs.readFileSync(filePath, "utf-8");
+      const ast = parse(content, {
+        sourceType: "module",
+        plugins: [
+          "jsx",
+          "typescript",
+          "decorators-legacy",
+          "classProperties",
+          "objectRestSpread",
+        ],
+        allowImportExportEverywhere: true,
+        allowReturnOutsideFunction: true,
+      });
+
+      // First, track all imports and requires to map variable names to file paths
+      const importMap: Map<string, string> = new Map(); // variable name -> source file path
+
+      traverse(ast, {
+        ImportDeclaration: (path) => {
+          if (path.node.source && this.isStringLiteral(path.node.source)) {
+            const importPath = path.node.source.value;
+            const resolvedPath = this.resolveControllerPath(
+              importPath,
+              filePath,
+            );
+            if (resolvedPath) {
+              path.node.specifiers.forEach((spec) => {
+                if (spec.type === "ImportDefaultSpecifier" && spec.local) {
+                  importMap.set(spec.local.name, resolvedPath);
+                }
+              });
+            }
+          }
+        },
+        VariableDeclarator: (path) => {
+          if (
+            path.node.init?.type === "CallExpression" &&
+            path.node.init.callee.type === "Identifier" &&
+            (path.node.init.callee as any).name === "require" &&
+            path.node.init.arguments.length > 0 &&
+            this.isStringLiteral(path.node.init.arguments[0])
+          ) {
+            const requirePath = (path.node.init.arguments[0] as any).value;
+            const resolvedPath = this.resolveControllerPath(
+              requirePath,
+              filePath,
+            );
+            if (resolvedPath && path.node.id.type === "Identifier") {
+              importMap.set((path.node.id as any).name, resolvedPath);
+            }
+          }
+        },
+      });
+
+      // Now look for app.use('/prefix', routerVariable) patterns
+      traverse(ast, {
+        CallExpression: (path: NodePath<CallExpression>) => {
+          const node = path.node;
+          if (
+            this.isMemberExpression(node.callee) &&
+            this.isIdentifier(node.callee.property) &&
+            node.callee.property.name === "use" &&
+            node.arguments.length >= 2
+          ) {
+            const firstArg = node.arguments[0];
+            const secondArg = node.arguments[1];
+
+            if (
+              this.isStringLiteral(firstArg) &&
+              this.isIdentifier(secondArg)
+            ) {
+              const prefix = firstArg.value;
+              const routerVarName = secondArg.name;
+
+              // First try to resolve from imports
+              let routerFilePath = importMap.get(routerVarName);
+
+              // If not found in imports, try the exported routers map
+              if (!routerFilePath) {
+                routerFilePath = this.routerExports.get(routerVarName);
+              }
+
+              if (routerFilePath) {
+                console.log(
+                  `[RouteDetector] Found app.use("${prefix}", ${routerVarName}) -> ${routerFilePath}`,
+                );
+                this.filePrefixes.set(routerFilePath, prefix);
+              }
+            }
+          }
+        },
+      });
+    } catch (error) {
+      console.warn(`Error detecting app prefixes in ${filePath}:`, error);
+    }
   }
 
   private async parseFileForRoutes(filePath: string): Promise<void> {
@@ -302,7 +513,7 @@ export class RouteDetector {
     const routePath = pathArg.value;
     let fullPath = routePath;
 
-    // Apply router prefix if detected
+    // Apply router prefix if detected in same file
     if (
       this.isMemberExpression(node.callee) &&
       this.isIdentifier(node.callee.object)
@@ -311,6 +522,14 @@ export class RouteDetector {
       const prefix = this.routerPrefixes.get(routerName);
       if (prefix) {
         fullPath = this.combinePaths(prefix, routePath);
+      }
+    }
+
+    // If no prefix found in current file, check if this file is mounted with a prefix in the app file
+    if (fullPath === routePath) {
+      const filePrefix = this.filePrefixes.get(filePath);
+      if (filePrefix) {
+        fullPath = this.combinePaths(filePrefix, routePath);
       }
     }
 
@@ -356,13 +575,31 @@ export class RouteDetector {
       }
     }
 
+    // Determine the mount prefix for this route
+    const mountPrefix =
+      this.filePrefixes.get(filePath) ||
+      (this.isMemberExpression(node.callee) &&
+      this.isIdentifier(node.callee.object)
+        ? this.routerPrefixes.get(node.callee.object.name)
+        : undefined) ||
+      "";
+
+    console.log(
+      `[RouteDetector] Route: ${method.toUpperCase()} ${fullPath} (prefix: "${mountPrefix}") from ${filePath}:${node.loc?.start.line}`,
+    );
+
     this.routes.push({
+      id: `${method.toUpperCase()}-${fullPath}-${handler}-${filePath}-${node.loc?.start.line || 0}`.replace(
+        /\s+/g,
+        "_",
+      ),
       method: method.toUpperCase(),
       path: fullPath,
       filePath,
       line: node.loc?.start.line || 0,
       middlewares,
       handler,
+      prefix: mountPrefix,
       controllerFilePath,
       controllerFunction,
     });

@@ -13,7 +13,7 @@ const HistoryPanel = ({
   const [error, setError] = useState(null);
   const [selectedSnapshots, setSelectedSnapshots] = useState(new Set());
   const [viewMode, setViewMode] = useState("timeline"); // 'timeline' or 'diff'
-  const [searchQuery, setSearchQuery] = useState("");
+  const [dateFilter, setDateFilter] = useState("all"); // 'today', 'week', 'month', 'all'
   const [filterModeSelection, setFilterModeSelection] = useState(null);
   const [expandedSnapshot, setExpandedSnapshot] = useState(null);
   const [editingNotes, setEditingNotes] = useState({});
@@ -162,10 +162,22 @@ const HistoryPanel = ({
 
       setSelectedSnapshots(newSelected);
 
-      // If we have 2 selections, trigger diff
+      // If we have 2 selections, trigger diff with chronological ordering
       if (newSelected.size === 2) {
         const [id1, id2] = Array.from(newSelected);
-        onDiffSelect && onDiffSelect(id1, id2);
+
+        // Find the actual snapshot objects
+        const snap1 = snapshots.find((s) => s._id === id1);
+        const snap2 = snapshots.find((s) => s._id === id2);
+
+        // Order by date: older first, newer second
+        const snap1Date = new Date(snap1.createdAt).getTime();
+        const snap2Date = new Date(snap2.createdAt).getTime();
+
+        const [olderId, newerId] =
+          snap1Date < snap2Date ? [id1, id2] : [id2, id1];
+
+        onDiffSelect && onDiffSelect(olderId, newerId);
       }
     } else {
       // Timeline mode - select snapshot and show details
@@ -215,51 +227,90 @@ const HistoryPanel = ({
     const diffMs = now - date;
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
+    // Format: Jan 13 11:00:43PM
+    const months = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+    const month = months[date.getMonth()];
+    const day = date.getDate();
+    const hours = String(date.getHours() % 12 || 12).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    const seconds = String(date.getSeconds()).padStart(2, "0");
+    const ampm = date.getHours() >= 12 ? "PM" : "AM";
+    const fullDateTime = `${month} ${day} ${hours}:${minutes}:${seconds} ${ampm}`;
+
     if (diffDays === 0) {
-      return date.toLocaleTimeString();
+      return fullDateTime;
     } else if (diffDays === 1) {
       return "Yesterday";
     } else if (diffDays < 7) {
       return `${diffDays} days ago`;
     } else {
-      return date.toLocaleDateString();
+      return fullDateTime;
     }
   };
 
-  const getSnapshotIcon = (snapshot) => {
-    if (snapshot.metadata?.framework) {
-      switch (snapshot.metadata.framework) {
-        case "express":
-          return "🟢";
-        case "fastapi":
-          return "🟡";
-        case "django":
-          return "🔵";
-        case "next.js":
-          return "⚫";
-        default:
-          return "📄";
-      }
+  const getStatusIcon = (snapshot) => {
+    if (!snapshot.lastResponse) {
+      // Gray point if no response
+      return "●"; // Gray dot will be styled with CSS
     }
-    return "📄";
+
+    const statusCode =
+      snapshot.lastResponse.statusCode || snapshot.lastResponse.status;
+    if (statusCode >= 200 && statusCode < 300) {
+      // Green point for success
+      return "●";
+    } else if (statusCode >= 400) {
+      // Red point for error
+      return "●";
+    }
+
+    return "●";
   };
 
-  // Filter snapshots based on search query
-  const filteredSnapshots = snapshots.filter((snapshot) => {
-    if (!searchQuery) return true;
+  // Filter snapshots based on date filter
+  const getFilteredSnapshots = () => {
+    const now = new Date();
+    let filtered = snapshots;
 
-    const query = searchQuery.toLowerCase();
-    // Search in tags, notes, label, and response status
-    return (
-      (snapshot.tags && snapshot.tags.some((tag) => tag.includes(query))) ||
-      (snapshot.notes && snapshot.notes.toLowerCase().includes(query)) ||
-      (snapshot.label && snapshot.label.toLowerCase().includes(query)) ||
-      (snapshot.lastResponse &&
-        (snapshot.lastResponse.statusCode || snapshot.lastResponse.status)
-          ?.toString()
-          .includes(query))
+    if (dateFilter !== "all") {
+      filtered = snapshots.filter((snapshot) => {
+        const snapshotDate = new Date(snapshot.createdAt);
+        const diffMs = now - snapshotDate;
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+        switch (dateFilter) {
+          case "today":
+            return diffDays === 0;
+          case "week":
+            return diffDays < 7;
+          case "month":
+            return diffDays < 30;
+          default:
+            return true;
+        }
+      });
+    }
+
+    // Sort by date descending (most recent first)
+    return filtered.sort(
+      (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
     );
-  });
+  };
+
+  const filteredSnapshots = getFilteredSnapshots();
 
   if (!isAuthenticated) {
     return (
@@ -318,7 +369,7 @@ const HistoryPanel = ({
             disabled={loading}
             title="Refresh history"
           >
-            🔄
+            ↺
           </button>
         </div>
       </div>
@@ -330,21 +381,33 @@ const HistoryPanel = ({
         <span className="route-path">{selectedRoute.path}</span>
       </div>
 
-      {/* Search and filter section */}
+      {/* Date filter section */}
       {snapshots.length > 0 && (
-        <div className="history-search">
-          <input
-            type="text"
-            placeholder="Search by tags, notes, label, status..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="search-input"
-          />
-          {searchQuery && (
-            <span className="search-results">
-              {filteredSnapshots.length} of {snapshots.length}
-            </span>
-          )}
+        <div className="history-filters">
+          <button
+            className={`filter-button ${dateFilter === "today" ? "active" : ""}`}
+            onClick={() => setDateFilter("today")}
+          >
+            Today
+          </button>
+          <button
+            className={`filter-button ${dateFilter === "week" ? "active" : ""}`}
+            onClick={() => setDateFilter("week")}
+          >
+            Week
+          </button>
+          <button
+            className={`filter-button ${dateFilter === "month" ? "active" : ""}`}
+            onClick={() => setDateFilter("month")}
+          >
+            Month
+          </button>
+          <button
+            className={`filter-button ${dateFilter === "all" ? "active" : ""}`}
+            onClick={() => setDateFilter("all")}
+          >
+            All
+          </button>
         </div>
       )}
 
@@ -403,8 +466,17 @@ const HistoryPanel = ({
                 }}
               >
                 <div className="timeline-marker">
-                  <span className="snapshot-icon">
-                    {getSnapshotIcon(snapshot)}
+                  <span
+                    className={`snapshot-icon ${
+                      !snapshot.lastResponse
+                        ? "status-none"
+                        : snapshot.lastResponse.statusCode >= 200 &&
+                            snapshot.lastResponse.statusCode < 300
+                          ? "status-success"
+                          : "status-error"
+                    }`}
+                  >
+                    {getStatusIcon(snapshot)}
                   </span>
                 </div>
 
@@ -430,11 +502,12 @@ const HistoryPanel = ({
                   )}
 
                   <div className="snapshot-details">
-                    {snapshot.metadata?.framework && (
-                      <span className="framework-badge">
-                        {snapshot.metadata.framework}
-                      </span>
-                    )}
+                    {snapshot.metadata?.framework &&
+                      snapshot.metadata.framework !== "unknown" && (
+                        <span className="framework-badge">
+                          {snapshot.metadata.framework}
+                        </span>
+                      )}
 
                     {snapshot.metadata?.fileSize && (
                       <span className="file-size">
@@ -651,9 +724,7 @@ const HistoryPanel = ({
                           <div className="response-time">
                             <span className="label">Timestamp:</span>
                             <span className="value">
-                              {new Date(
-                                snapshot.lastResponse.timestamp,
-                              ).toLocaleString()}
+                              {formatDate(snapshot.lastResponse.timestamp)}
                             </span>
                           </div>
                         )}
