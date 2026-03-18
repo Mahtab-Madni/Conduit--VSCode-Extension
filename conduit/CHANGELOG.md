@@ -1,9 +1,11 @@
-# Change Log
+## [0.1.0] - 2026-03-18
 
-All notable changes to the "conduit" extension will be documented in this file.
+### Added
+- Redesigned marketplace README with professional formatting
+- Enhanced quick start guide with 5-step setup
+- Improved troubleshooting section
+- Better feature organization and benefits focus
 
-Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
-
-## [Unreleased]
-
-- Initial release
+### Changed
+- README now emphasizes user benefits over technical details
+- Reorganized documentation structure
