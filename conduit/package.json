@@ -3,7 +3,7 @@
   "displayName": "Conduit - API Playground",
   "description": "Real-time API route detection with intelligent payload generation and interactive testing—all inside VS Code",
   "publisher": "MahtabMadni123",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "repository": {
     "type": "git",
     "url": "https://github.com/Mahtab-Madni/Conduit--VSCode-Extension"

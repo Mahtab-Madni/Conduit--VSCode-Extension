@@ -213,7 +213,7 @@ export class PayloadPredictor {
         return separateFileContext;
       }
     }
-    
+
     // If both failed, return null (will trigger error handling in predict())
     console.warn(
       `Could not find controller function "${route.handler}" in route file or separate controller file`,
@@ -450,8 +450,11 @@ export class PayloadPredictor {
     }
 
     try {
+      // Predict the base URL for the user's API
+      const baseUrl = await this.predictBaseUrl(route);
+
       const response = await this.callBackendAI(context, mongoData);
-      return this.parseBackendResponse(response);
+      return this.parseBackendResponse(response, baseUrl);
     } catch (error) {
       console.error("Error calling AI backend:", error);
 
@@ -516,6 +519,7 @@ export class PayloadPredictor {
     const routeInfo = {
       method: context.route.method,
       path: context.route.path,
+      handler: context.functionName,
       middlewares: context.route.middlewares,
       reqBodyFields: context.reqBodyFields,
       controllerCode: context.controllerCode,
@@ -548,7 +552,10 @@ export class PayloadPredictor {
     return await response.json();
   }
 
-  private parseBackendResponse(response: any): PayloadPrediction | null {
+  private parseBackendResponse(
+    response: any,
+    baseUrl?: string,
+  ): PayloadPrediction | null {
     try {
       if (!response.success || !response.payload) {
         throw new Error("Invalid backend response structure");
@@ -556,7 +563,10 @@ export class PayloadPredictor {
       const payload = response.payload;
 
       if (payload.fields && Array.isArray(payload.fields)) {
-        return payload as PayloadPrediction;
+        return {
+          ...payload,
+          baseUrl: baseUrl || payload.baseUrl,
+        } as PayloadPrediction;
       }
 
       const fields = [];
@@ -583,6 +593,7 @@ export class PayloadPredictor {
             required: true,
           },
         ],
+        baseUrl,
       };
     } catch (error) {
       console.error("Error parsing backend response:", error);

@@ -37,6 +37,11 @@ export class RouteDetector {
 
   constructor(private workspaceRoot: string) {}
 
+  private normalizePath(filePath: string): string {
+    // Normalize to forward slashes and lowercase for case-insensitive comparison
+    return path.normalize(filePath).replace(/\\/g, "/").toLowerCase();
+  }
+
   async detectRoutes(): Promise<DetectedRoute[]> {
     this.routes = [];
     this.routerPrefixes.clear();
@@ -47,22 +52,55 @@ export class RouteDetector {
 
     // Find all JavaScript/TypeScript files that might contain routes
     const files = await this.findRouteFiles();
+    console.log(`[RouteDetector] Found ${files.length} route files`);
 
     // First pass: detect router exports from all files
     for (const file of files) {
       await this.detectRouterExports(file);
     }
+    console.log(
+      `[RouteDetector] After pass 1: routerExports has ${this.routerExports.size} entries`,
+    );
 
     // Second pass: detect app.use() calls in main files and extract prefixes
+    console.log(
+      `[RouteDetector] Looking for main files among ${files.length} files:`,
+    );
+
+    // Helper function to identify main files
+    const isMainFile = (file: string): boolean => {
+      const baseName = path.basename(file).toLowerCase();
+      return (
+        baseName === "index.js" ||
+        baseName === "app.js" ||
+        baseName === "server.js" ||
+        baseName === "main.js" ||
+        baseName.startsWith("app.") // e.g., app.config.js, app.ts
+      );
+    };
+
+    const mainFilesFound: string[] = [];
     for (const file of files) {
-      if (
-        file.endsWith("index.js") ||
-        file.endsWith("app.js") ||
-        file.endsWith("server.js")
-      ) {
-        await this.detectAppPrefixes(file);
+      if (isMainFile(file)) {
+        mainFilesFound.push(file);
+        console.log(`[RouteDetector] Found main file: ${file}`);
       }
     }
+
+    if (mainFilesFound.length === 0) {
+      console.log(
+        `[RouteDetector] WARNING: No main files found! Files examined:`,
+      );
+      files.forEach((f) => console.log(`  - ${f}`));
+    }
+
+    for (const file of mainFilesFound) {
+      console.log(`[RouteDetector] Processing main file: ${file}`);
+      await this.detectAppPrefixes(file);
+    }
+    console.log(
+      `[RouteDetector] After pass 2: filePrefixes has ${this.filePrefixes.size} entries`,
+    );
 
     // Third pass: detect route definitions (now with prefixes available)
     for (const file of files) {
@@ -70,21 +108,27 @@ export class RouteDetector {
     }
 
     this.routerExports.forEach((filePath, routerName) => {
-      console.log(`  ${routerName} -> ${filePath}`);
+      console.log(
+        `[RouteDetector] Router export: ${routerName} -> ${filePath}`,
+      );
     });
     this.filePrefixes.forEach((prefix, filePath) => {
-      console.log(`  ${filePath} -> ${prefix}`);
+      console.log(`[RouteDetector] File prefix: ${filePath} -> ${prefix}`);
     });
+    console.log(`[RouteDetector] Detected ${this.routes.length} total routes`);
     return this.routes;
   }
 
   private async findRouteFiles(): Promise<string[]> {
     const files: string[] = [];
 
+    console.log(`[RouteDetector] Workspace root: ${this.workspaceRoot}`);
+
     // Common patterns for route files
     const patterns = [
       "**/app.js",
       "**/server.js",
+      "**/main.js",
       "**/index.js",
       "**/routes/**/*.js",
       "**/router/**/*.js",
@@ -99,13 +143,132 @@ export class RouteDetector {
           pattern,
           "**/node_modules/**",
         );
+        if (foundFiles.length > 0) {
+          console.log(
+            `[RouteDetector] Pattern "${pattern}" found ${foundFiles.length} files:`,
+          );
+          foundFiles.forEach((f) => console.log(`  → ${f.fsPath}`));
+        }
         files.push(...foundFiles.map((f) => f.fsPath));
       } catch (error) {
         console.warn(`Error searching for pattern ${pattern}:`, error);
       }
     }
 
-    return [...new Set(files)];
+    const uniqueFiles = [...new Set(files)];
+    console.log(
+      `[RouteDetector] Total unique files found: ${uniqueFiles.length}`,
+    );
+    console.log(
+      `[RouteDetector] Files include app files: ${uniqueFiles.some((f) => f.endsWith("app.js") || f.endsWith("App.js") || f.endsWith("server.js")) ? "YES" : "NO"}`,
+    );
+
+    // Log all discovered files for debugging
+    console.log(`[RouteDetector] All discovered files:`);
+    uniqueFiles.forEach((f) => console.log(`  → ${f}`));
+
+    // Fallback: look for app.js/server.js files that might have been missed
+    console.log(`[RouteDetector] Attempting fallback search for main files...`);
+    try {
+      const appJsFiles = await vscode.workspace.findFiles(
+        "app.js",
+        "**/node_modules/**",
+      );
+      const AppJsFiles = await vscode.workspace.findFiles(
+        "App.js",
+        "**/node_modules/**",
+      );
+      const serverJsFiles = await vscode.workspace.findFiles(
+        "server.js",
+        "**/node_modules/**",
+      );
+      const mainJsFiles = await vscode.workspace.findFiles(
+        "main.js",
+        "**/node_modules/**",
+      );
+
+      console.log(
+        `[RouteDetector] Fallback found app.js: ${appJsFiles.length}`,
+      );
+      console.log(
+        `[RouteDetector] Fallback found App.js: ${AppJsFiles.length}`,
+      );
+      console.log(
+        `[RouteDetector] Fallback found server.js: ${serverJsFiles.length}`,
+      );
+      console.log(
+        `[RouteDetector] Fallback found main.js: ${mainJsFiles.length}`,
+      );
+
+      [appJsFiles, AppJsFiles, serverJsFiles, mainJsFiles].forEach(
+        (fileList) => {
+          fileList.forEach((f) => {
+            const fPath = f.fsPath;
+            if (
+              !uniqueFiles.some(
+                (existing) => existing.toLowerCase() === fPath.toLowerCase(),
+              )
+            ) {
+              console.log(
+                `[RouteDetector] Fallback: Adding previously missed main file: ${fPath}`,
+              );
+              uniqueFiles.push(fPath);
+            }
+          });
+        },
+      );
+    } catch (error) {
+      console.warn(`[RouteDetector] Fallback search failed:`, error);
+    }
+
+    // Direct filesystem scan as final fallback for case-sensitive issues
+    console.log(`[RouteDetector] Attempting direct filesystem scan...`);
+    try {
+      const mainFileNames = [
+        "App.js",
+        "app.js",
+        "server.js",
+        "Server.js",
+        "Main.js",
+        "Index.js",
+        "main.js",
+        "index.js",
+      ];
+      const dirents = fs.readdirSync(this.workspaceRoot, {
+        withFileTypes: true,
+      });
+
+      for (const dirent of dirents) {
+        if (dirent.isDirectory() && !dirent.name.startsWith(".")) {
+          const subDirPath = path.join(this.workspaceRoot, dirent.name);
+          try {
+            const subDirFiles = fs.readdirSync(subDirPath);
+            for (const fileName of mainFileNames) {
+              if (subDirFiles.includes(fileName)) {
+                const fullPath = path.join(subDirPath, fileName);
+                const normalizedFullPath = this.normalizePath(fullPath);
+                if (
+                  !uniqueFiles.some(
+                    (existing) =>
+                      existing.toLowerCase() ===
+                      normalizedFullPath.toLowerCase(),
+                  )
+                ) {
+                  console.log(`[RouteDetector] Direct scan found: ${fullPath}`);
+                  uniqueFiles.push(fullPath);
+                }
+              }
+            }
+          } catch (subError) {
+            // Ignore errors reading subdirectories
+          }
+        }
+      }
+    } catch (fsError) {
+      console.warn(`[RouteDetector] Direct filesystem scan failed:`, fsError);
+    }
+
+    return uniqueFiles;
   }
 
   private async detectRouterExports(filePath: string): Promise<void> {
@@ -133,7 +296,9 @@ export class RouteDetector {
               routerName.toLowerCase().includes("router") ||
               routerName.toLowerCase().includes("route")
             ) {
-              this.routerExports.set(routerName, filePath);
+              // Normalize path for consistent storage
+              const normalizedPath = this.normalizePath(filePath);
+              this.routerExports.set(routerName, normalizedPath);
             }
           }
         },
@@ -148,7 +313,9 @@ export class RouteDetector {
               routerName.toLowerCase().includes("router") ||
               routerName.toLowerCase().includes("route")
             ) {
-              this.routerExports.set(routerName, filePath);
+              // Normalize path for consistent storage
+              const normalizedPath = this.normalizePath(filePath);
+              this.routerExports.set(routerName, normalizedPath);
             }
           }
         },
@@ -173,7 +340,10 @@ export class RouteDetector {
 
   private async detectAppPrefixes(filePath: string): Promise<void> {
     try {
+      console.log(`[RouteDetector] detectAppPrefixes called for: ${filePath}`);
       const content = fs.readFileSync(filePath, "utf-8");
+      // Normalize AFTER reading to preserve path resolution
+      const normalizedFilePath = this.normalizePath(filePath);
       const ast = parse(content, {
         sourceType: "module",
         plugins: [
@@ -194,6 +364,7 @@ export class RouteDetector {
         ImportDeclaration: (path) => {
           if (path.node.source && this.isStringLiteral(path.node.source)) {
             const importPath = path.node.source.value;
+            // Use ORIGINAL filePath for path resolution, not normalized
             const resolvedPath = this.resolveControllerPath(
               importPath,
               filePath,
@@ -202,8 +373,15 @@ export class RouteDetector {
               path.node.specifiers.forEach((spec) => {
                 if (spec.type === "ImportDefaultSpecifier" && spec.local) {
                   importMap.set(spec.local.name, resolvedPath);
+                  console.log(
+                    `[RouteDetector] ✓ Import: ${spec.local.name} -> ${resolvedPath}`,
+                  );
                 }
               });
+            } else {
+              console.log(
+                `[RouteDetector] ✗ Import failed to resolve: ${importPath}`,
+              );
             }
           }
         },
@@ -216,16 +394,26 @@ export class RouteDetector {
             this.isStringLiteral(path.node.init.arguments[0])
           ) {
             const requirePath = (path.node.init.arguments[0] as any).value;
+            // Use ORIGINAL filePath for path resolution, not normalized
             const resolvedPath = this.resolveControllerPath(
               requirePath,
               filePath,
             );
             if (resolvedPath && path.node.id.type === "Identifier") {
               importMap.set((path.node.id as any).name, resolvedPath);
+              console.log(
+                `[RouteDetector] ✓ Require: ${(path.node.id as any).name} -> ${resolvedPath}`,
+              );
             }
           }
         },
       });
+
+      console.log(
+        `[RouteDetector] After import/require scan: importMap has ${importMap.size} entries, routerExports has ${this.routerExports.size} entries`,
+      );
+
+      let appUseCallsFound = 0;
 
       // Now look for app.use('/prefix', routerVariable) patterns
       traverse(ast, {
@@ -237,6 +425,7 @@ export class RouteDetector {
             node.callee.property.name === "use" &&
             node.arguments.length >= 2
           ) {
+            appUseCallsFound++;
             const firstArg = node.arguments[0];
             const secondArg = node.arguments[1];
 
@@ -247,21 +436,53 @@ export class RouteDetector {
               const prefix = firstArg.value;
               const routerVarName = secondArg.name;
 
+              console.log(
+                `[RouteDetector] Found app.use(${prefix}, ${routerVarName})`,
+              );
+
               // First try to resolve from imports
               let routerFilePath = importMap.get(routerVarName);
 
               // If not found in imports, try the exported routers map
               if (!routerFilePath) {
                 routerFilePath = this.routerExports.get(routerVarName);
+                if (routerFilePath) {
+                  console.log(
+                    `[RouteDetector] Router ${routerVarName} found in routerExports: ${routerFilePath}`,
+                  );
+                } else {
+                  console.log(
+                    `[RouteDetector] Router ${routerVarName} NOT in routerExports. Available: ${Array.from(this.routerExports.keys()).join(", ")}`,
+                  );
+                }
+              } else {
+                console.log(
+                  `[RouteDetector] Router ${routerVarName} from importMap: ${routerFilePath}`,
+                );
               }
 
               if (routerFilePath) {
-                this.filePrefixes.set(routerFilePath, prefix);
+                const normalizedPath = this.normalizePath(routerFilePath);
+                console.log(
+                  `[RouteDetector] Mapping ${prefix} -> ${routerVarName} -> ${normalizedPath}`,
+                );
+                this.filePrefixes.set(normalizedPath, prefix);
+              } else {
+                console.log(
+                  `[RouteDetector] Could not find path for router: ${routerVarName}`,
+                );
               }
             }
           }
         },
       });
+
+      console.log(
+        `[RouteDetector] Found ${appUseCallsFound} app.use() calls in main file`,
+      );
+      console.log(
+        `[RouteDetector] After app.use scan: filePrefixes now has ${this.filePrefixes.size} entries`,
+      );
     } catch (error) {
       console.warn(`Error detecting app prefixes in ${filePath}:`, error);
     }
@@ -270,6 +491,8 @@ export class RouteDetector {
   private async parseFileForRoutes(filePath: string): Promise<void> {
     try {
       const content = fs.readFileSync(filePath, "utf-8");
+      // Normalize AFTER using for path resolution
+      const normalizedFilePath = this.normalizePath(filePath);
 
       // Parse with Babel
       const ast = parse(content, {
@@ -304,14 +527,14 @@ export class RouteDetector {
       // Second pass: detect router prefixes from app.use
       traverse(ast, {
         CallExpression: (path: NodePath<CallExpression>) => {
-          this.detectRouterPrefix(path.node, filePath);
+          this.detectRouterPrefix(path.node, normalizedFilePath);
         },
       });
 
       // Third pass: detect routes
       traverse(ast, {
         CallExpression: (path: NodePath<CallExpression>) => {
-          this.detectRoute(path.node, filePath);
+          this.detectRoute(path.node, normalizedFilePath);
         },
       });
     } catch (error) {
@@ -433,7 +656,7 @@ export class RouteDetector {
     if (hasExtension) {
       // If import already specifies extension, check that exact file
       if (fs.existsSync(resolvedPath)) {
-        return resolvedPath;
+        return this.normalizePath(resolvedPath);
       }
     } else {
       // Try common extensions only if no extension specified
@@ -441,7 +664,7 @@ export class RouteDetector {
       for (const ext of extensions) {
         const fullPath = resolvedPath + ext;
         if (fs.existsSync(fullPath)) {
-          return fullPath;
+          return this.normalizePath(fullPath);
         }
       }
 
@@ -449,7 +672,7 @@ export class RouteDetector {
       for (const ext of extensions) {
         const indexPath = path.join(resolvedPath, "index" + ext);
         if (fs.existsSync(indexPath)) {
-          return indexPath;
+          return this.normalizePath(indexPath);
         }
       }
     }
@@ -503,8 +726,24 @@ export class RouteDetector {
 
     // If no prefix found in current file, check if this file is mounted with a prefix in the app file
     if (fullPath === routePath) {
-      const filePrefix = this.filePrefixes.get(filePath);
+      const normalizedFilePath = this.normalizePath(filePath);
+      const filePrefix = this.filePrefixes.get(normalizedFilePath);
+
+      if (!filePrefix) {
+        console.log(`[RouteDetector] No prefix found for file: ${filePath}`);
+        console.log(
+          `[RouteDetector] Normalized key was: ${normalizedFilePath}`,
+        );
+        console.log(
+          `[RouteDetector] Available prefixes:`,
+          Array.from(this.filePrefixes.keys()),
+        );
+      }
+
       if (filePrefix) {
+        console.log(
+          `[RouteDetector] Found prefix ${filePrefix} for ${normalizedFilePath}`,
+        );
         fullPath = this.combinePaths(filePrefix, routePath);
       }
     }
@@ -553,7 +792,7 @@ export class RouteDetector {
 
     // Determine the mount prefix for this route
     const mountPrefix =
-      this.filePrefixes.get(filePath) ||
+      this.filePrefixes.get(this.normalizePath(filePath)) ||
       (this.isMemberExpression(node.callee) &&
       this.isIdentifier(node.callee.object)
         ? this.routerPrefixes.get(node.callee.object.name)
@@ -575,6 +814,13 @@ export class RouteDetector {
       controllerFilePath,
       controllerFunction,
     });
+
+    // Debug logging
+    if (fullPath !== routePath) {
+      console.log(
+        `[RouteDetector] ✓ Route with prefix: ${routePath} + ${mountPrefix} = ${fullPath}`,
+      );
+    }
   }
 
   private combinePaths(prefix: string, path: string): string {

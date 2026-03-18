@@ -277,8 +277,7 @@ export function activate(context: vscode.ExtensionContext) {
               currentPanel?.updateAuthStatus();
             }, 100);
             return;
-          } catch (vscodeAuthError) {
-          }
+          } catch (vscodeAuthError) {}
 
           // Fallback to browser-based flow
           const authUrl = apiService.getAuthUrl();
@@ -470,6 +469,8 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 let refreshTimeout: NodeJS.Timeout;
+let isRefreshing = false;
+
 function debounceRefresh() {
   clearTimeout(refreshTimeout);
   refreshTimeout = setTimeout(() => {
@@ -481,6 +482,16 @@ async function refreshRoutes() {
   if (!routeDetector || !currentPanel) {
     return;
   }
+
+  // Prevent overlapping refresh operations
+  if (isRefreshing) {
+    console.log(
+      "[Conduit] Refresh already in progress, skipping duplicate request",
+    );
+    return;
+  }
+
+  isRefreshing = true;
 
   try {
     vscode.window.withProgress(
@@ -500,6 +511,8 @@ async function refreshRoutes() {
     );
   } catch (error) {
     vscode.window.showErrorMessage(`Conduit: Error detecting routes: ${error}`);
+  } finally {
+    isRefreshing = false;
   }
 }
 
