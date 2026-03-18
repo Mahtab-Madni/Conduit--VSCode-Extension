@@ -494,7 +494,7 @@ async function refreshRoutes() {
   isRefreshing = true;
 
   try {
-    vscode.window.withProgress(
+    await vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
         title: "Conduit: Detecting routes...",
