@@ -10,6 +10,7 @@ const JsonEditor = ({
 }) => {
   const textareaRef = useRef(null);
   const preRef = useRef(null);
+  const containerRef = useRef(null);
 
   // Syntax highlighting function (WITHOUT reformatting - keep value as-is)
   const highlightJSON = useMemo(() => {
@@ -56,18 +57,24 @@ const JsonEditor = ({
 
   // Sync scroll and other properties when value changes
   useEffect(() => {
-    if (textareaRef.current && preRef.current) {
+    if (textareaRef.current && preRef.current && containerRef.current) {
       // Ensure both elements have the same scroll position
       preRef.current.scrollTop = textareaRef.current.scrollTop;
       preRef.current.scrollLeft = textareaRef.current.scrollLeft;
+
+      // Auto-expand container to fit content
+      const scrollHeight = textareaRef.current.scrollHeight;
+      const minHeight = Math.max(rows * 24, scrollHeight);
+      textareaRef.current.style.minHeight = `${minHeight}px`;
+      preRef.current.style.minHeight = `${minHeight}px`;
     }
-  }, [value]);
+  }, [value, rows]);
 
   // Calculate minimum height based on rows
   const minHeight = rows * 24; // Approximate line height
 
   return (
-    <div className={`json-editor-container ${className}`}>
+    <div ref={containerRef} className={`json-editor-container ${className}`}>
       <pre
         ref={preRef}
         className="json-syntax-highlight"

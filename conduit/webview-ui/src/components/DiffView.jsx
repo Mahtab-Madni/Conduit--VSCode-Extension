@@ -4,6 +4,7 @@ import "./DiffView.css";
 const DiffView = ({ snapshot1, snapshot2, diff, onClose }) => {
   const [viewType, setViewType] = useState("payload"); // 'payload' or 'code'
   const [showSideBySide, setShowSideBySide] = useState(true);
+  const [zoomLevel, setZoomLevel] = useState(1); // 1 = 100%, 0.8 = 80%, etc.
 
   if (!snapshot1 || !snapshot2 || !diff) {
     return null;
@@ -33,114 +34,208 @@ const DiffView = ({ snapshot1, snapshot2, diff, onClose }) => {
     }
   };
 
-  const renderPayloadDiff = () => {
-    const oldPayload = diff.payload?.old || {};
-    const newPayload = diff.payload?.new || {};
-    const hasPayloads =
-      Object.keys(oldPayload).length > 0 || Object.keys(newPayload).length > 0;
+  // Simple diff algorithm - find common lines
+  const computeLineDiff = (oldLines, newLines) => {
+    const lineMap = new Map();
+    const oldMarked = new Array(oldLines.length).fill(false);
+    const newMarked = new Array(newLines.length).fill(false);
 
-    if (!hasPayloads) {
-      return (
-        <div className="no-changes">
-          <p>No payload data available</p>
-        </div>
-      );
+    // Mark identical lines
+    for (let i = 0; i < oldLines.length; i++) {
+      for (let j = 0; j < newLines.length; j++) {
+        if (!oldMarked[i] && !newMarked[j] && oldLines[i] === newLines[j]) {
+          oldMarked[i] = true;
+          newMarked[j] = true;
+          break;
+        }
+      }
     }
 
-    // Simple diff algorithm
-    const allKeys = new Set([
-      ...Object.keys(oldPayload),
-      ...Object.keys(newPayload),
-    ]);
-    const changes = [];
+    return {
+      oldMarked,
+      newMarked,
+      getLineType: (isOld, index) => {
+        const marked = isOld ? oldMarked[index] : newMarked[index];
+        return marked ? "unchanged" : "changed";
+      },
+    };
+  };
 
-    allKeys.forEach((key) => {
-      const oldValue = oldPayload[key];
-      const newValue = newPayload[key];
-      const oldType = oldValue !== undefined ? typeof oldValue : "undefined";
-      const newType = newValue !== undefined ? typeof newValue : "undefined";
+  const renderPayloadDiff = () => {
+    // Build complete request-response details from snapshots
+    const buildRequestDetails = (snapshot) => {
+      const details = {
+        "Request URL": snapshot.lastRequest?.url || snapshot.routePath || "N/A",
+        Method: snapshot.lastRequest?.method || snapshot.method || "N/A",
+        Headers: snapshot.lastRequest?.headers || {},
+        "Request Body":
+          snapshot.lastRequest?.body || snapshot.lastPayload || {},
+        "Response Status": snapshot.lastResponse?.statusCode || "N/A",
+        "Response Body": snapshot.lastResponse?.body || {},
+        "Tested At":
+          snapshot.lastRequest?.testedAt || snapshot.updatedAt || "N/A",
+      };
+      return details;
+    };
 
-      if (oldValue === undefined && newValue !== undefined) {
-        changes.push({ type: "added", key, newValue, newType });
-      } else if (oldValue !== undefined && newValue === undefined) {
-        changes.push({ type: "removed", key, oldValue, oldType });
-      } else if (JSON.stringify(oldValue) !== JSON.stringify(newValue)) {
-        changes.push({
-          type: "changed",
-          key,
-          oldValue,
-          oldType,
-          newValue,
-          newType,
-        });
-      }
-    });
+    const oldDetails = buildRequestDetails(snapshot1);
+    const newDetails = buildRequestDetails(snapshot2);
+
+    // Function to compare and highlight differences
+    const renderJsonWithDiff = (current, other, isOld) => {
+      const lines = JSON.stringify(current, null, 2).split("\n");
+      const otherStr = JSON.stringify(other, null, 2);
+
+      return lines.map((line, idx) => {
+        const lineContent = line;
+        // Extract the key from the line
+        const keyMatch = line.match(/^\s*"([^"]+)"\s*:/);
+        const key = keyMatch ? keyMatch[1] : null;
+
+        // Check if this line exists in the other version and if values differ
+        let isChanged = false;
+        let isAdded = false;
+        let isRemoved = false;
+
+        if (key) {
+          const keyInOther = otherStr.includes(`"${key}"`);
+          if (!keyInOther) {
+            isAdded = !isOld;
+            isRemoved = isOld;
+          } else {
+            // Check if value differs
+            const currentValue = JSON.stringify(current[key]);
+            const otherValue = JSON.stringify(other[key]);
+            if (currentValue !== otherValue) {
+              isChanged = true;
+            }
+          }
+        }
+
+        const bgColor = isChanged
+          ? "rgba(255, 193, 7, 0.2)"
+          : isAdded
+            ? "rgba(76, 175, 80, 0.2)"
+            : isRemoved
+              ? "rgba(244, 67, 54, 0.2)"
+              : "transparent";
+
+        const borderColor =
+          isChanged || isAdded || isRemoved ? "1px solid" : "none";
+        const borderColorValue = isChanged
+          ? "#ff9800"
+          : isAdded
+            ? "#4caf50"
+            : isRemoved
+              ? "#f44336"
+              : "transparent";
+
+        return (
+          <div
+            key={idx}
+            style={{
+              background: bgColor,
+              borderLeft: borderColor + " " + borderColorValue,
+              paddingLeft: "4px",
+              margin: "1px 0",
+            }}
+          >
+            {lineContent}
+          </div>
+        );
+      });
+    };
 
     if (showSideBySide) {
       return (
         <div className="side-by-side">
           <div className="diff-column old">
             <h4>Before ({formatDate(diff.timestamps.old)})</h4>
-            <pre className="json-content">
-              {JSON.stringify(oldPayload, null, 2)}
-            </pre>
+            <div
+              style={{
+                fontSize: `${13 * zoomLevel}px`,
+                fontFamily: "var(--vscode-editor-font-family)",
+                lineHeight: "1.4",
+                overflow: "auto",
+                padding: "16px",
+              }}
+            >
+              {renderJsonWithDiff(oldDetails, newDetails, true)}
+            </div>
           </div>
           <div className="diff-column new">
             <h4>After ({formatDate(diff.timestamps.new)})</h4>
-            <pre className="json-content">
-              {JSON.stringify(newPayload, null, 2)}
-            </pre>
+            <div
+              style={{
+                fontSize: `${13 * zoomLevel}px`,
+                fontFamily: "var(--vscode-editor-font-family)",
+                lineHeight: "1.4",
+                overflow: "auto",
+                padding: "16px",
+              }}
+            >
+              {renderJsonWithDiff(newDetails, oldDetails, false)}
+            </div>
           </div>
         </div>
       );
     } else {
+      // Unified diff view showing request-response details
       return (
         <div className="unified-diff">
-          <div className="changes-list">
-            {changes.length === 0 ? (
-              <p>Payloads are identical</p>
-            ) : (
-              changes.map((change, index) => (
-                <div key={index} className={`change-item ${change.type}`}>
-                  <div className="change-header">
-                    <span className={`change-type ${change.type}`}>
-                      {change.type === "added" && "+ Added"}
-                      {change.type === "removed" && "- Removed"}
-                      {change.type === "changed" && "~ Changed"}
-                    </span>
-                    <code className="field-name">{change.key}</code>
-                  </div>
-                  <div className="change-details">
-                    {change.type === "added" && (
-                      <div className="new-value">
-                        <span className="type-badge">{change.newType}</span>
-                        <code>{JSON.stringify(change.newValue)}</code>
-                      </div>
-                    )}
-                    {change.type === "removed" && (
-                      <div className="old-value">
-                        <span className="type-badge">{change.oldType}</span>
-                        <code>{JSON.stringify(change.oldValue)}</code>
-                      </div>
-                    )}
-                    {change.type === "changed" && (
-                      <>
-                        <div className="old-value">
-                          <span className="label">Before:</span>
-                          <span className="type-badge">{change.oldType}</span>
-                          <code>{JSON.stringify(change.oldValue)}</code>
-                        </div>
-                        <div className="new-value">
-                          <span className="label">After:</span>
-                          <span className="type-badge">{change.newType}</span>
-                          <code>{JSON.stringify(change.newValue)}</code>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-              ))
-            )}
+          <div
+            className="changes-list"
+            style={{ fontSize: `${13 * zoomLevel}px` }}
+          >
+            <div className="request-details-section">
+              <h5
+                style={{
+                  margin: "12px 0 8px 0",
+                  color: "#888",
+                  fontSize: "12px",
+                  fontWeight: "bold",
+                  textTransform: "uppercase",
+                  letterSpacing: "1px",
+                }}
+              >
+                Before Request Details
+              </h5>
+              <pre
+                style={{
+                  background: "rgba(244, 67, 54, 0.1)",
+                  padding: "8px",
+                  borderRadius: "4px",
+                  margin: "0 0 16px 0",
+                  border: "1px solid rgba(244, 67, 54, 0.3)",
+                }}
+              >
+                {JSON.stringify(oldDetails, null, 2)}
+              </pre>
+
+              <h5
+                style={{
+                  margin: "12px 0 8px 0",
+                  color: "#888",
+                  fontSize: "12px",
+                  fontWeight: "bold",
+                  textTransform: "uppercase",
+                  letterSpacing: "1px",
+                }}
+              >
+                After Request Details
+              </h5>
+              <pre
+                style={{
+                  background: "rgba(76, 175, 80, 0.1)",
+                  padding: "8px",
+                  borderRadius: "4px",
+                  margin: "0",
+                  border: "1px solid rgba(76, 175, 80, 0.3)",
+                }}
+              >
+                {JSON.stringify(newDetails, null, 2)}
+              </pre>
+            </div>
           </div>
         </div>
       );
@@ -161,15 +256,22 @@ const DiffView = ({ snapshot1, snapshot2, diff, onClose }) => {
 
     const oldLines = oldCode.split("\n");
     const newLines = newCode.split("\n");
+    const lineDiff = computeLineDiff(oldLines, newLines);
 
     if (showSideBySide) {
       return (
         <div className="side-by-side">
           <div className="diff-column old">
             <h4>Before ({formatDate(diff.timestamps.old)})</h4>
-            <pre className="code-content">
+            <pre
+              className="code-content"
+              style={{ fontSize: `${13 * zoomLevel}px` }}
+            >
               {oldLines.map((line, index) => (
-                <div key={index} className="code-line">
+                <div
+                  key={index}
+                  className={`code-line ${lineDiff.getLineType(true, index)}`}
+                >
                   <span className="line-number">{index + 1}</span>
                   <span className="line-content">{line}</span>
                 </div>
@@ -178,9 +280,15 @@ const DiffView = ({ snapshot1, snapshot2, diff, onClose }) => {
           </div>
           <div className="diff-column new">
             <h4>After ({formatDate(diff.timestamps.new)})</h4>
-            <pre className="code-content">
+            <pre
+              className="code-content"
+              style={{ fontSize: `${13 * zoomLevel}px` }}
+            >
               {newLines.map((line, index) => (
-                <div key={index} className="code-line">
+                <div
+                  key={index}
+                  className={`code-line ${lineDiff.getLineType(false, index)}`}
+                >
                   <span className="line-number">{index + 1}</span>
                   <span className="line-content">{line}</span>
                 </div>
@@ -224,7 +332,10 @@ const DiffView = ({ snapshot1, snapshot2, diff, onClose }) => {
 
       return (
         <div className="unified-diff">
-          <pre className="code-content">
+          <pre
+            className="code-content"
+            style={{ fontSize: `${13 * zoomLevel}px` }}
+          >
             {unifiedLines.map((line, index) => (
               <div key={index} className={`code-line ${line.type}`}>
                 <span className="line-number">{line.lineNo}</span>
@@ -261,7 +372,11 @@ const DiffView = ({ snapshot1, snapshot2, diff, onClose }) => {
               <p>{formatDate(snapshot1.createdAt)}</p>
               {snapshot1.lastResponse ? (
                 <span
-                  className={`status-badge status-${Math.floor(snapshot1.lastResponse.statusCode || snapshot1.lastResponse.status || 0 / 100)}`}
+                  className={`status-badge status-${Math.floor(
+                    (snapshot1.lastResponse.statusCode ||
+                      snapshot1.lastResponse.status ||
+                      0) / 100,
+                  )}`}
                 >
                   {snapshot1.lastResponse.statusCode ||
                     snapshot1.lastResponse.status}
@@ -282,7 +397,11 @@ const DiffView = ({ snapshot1, snapshot2, diff, onClose }) => {
               <p>{formatDate(snapshot2.createdAt)}</p>
               {snapshot2.lastResponse ? (
                 <span
-                  className={`status-badge status-${Math.floor(snapshot2.lastResponse.statusCode || snapshot2.lastResponse.status || 0 / 100)}`}
+                  className={`status-badge status-${Math.floor(
+                    (snapshot2.lastResponse.statusCode ||
+                      snapshot2.lastResponse.status ||
+                      0) / 100,
+                  )}`}
                 >
                   {snapshot2.lastResponse.statusCode ||
                     snapshot2.lastResponse.status}
@@ -324,6 +443,24 @@ const DiffView = ({ snapshot1, snapshot2, diff, onClose }) => {
                 onClick={() => setShowSideBySide(false)}
               >
                 Unified
+              </button>
+            </div>
+
+            <div className="zoom-controls">
+              <button
+                title="Zoom Out"
+                onClick={() => setZoomLevel(Math.max(0.5, zoomLevel - 0.1))}
+                disabled={zoomLevel <= 0.5}
+              >
+                −
+              </button>
+              <span className="zoom-level">{Math.round(zoomLevel * 100)}%</span>
+              <button
+                title="Zoom In"
+                onClick={() => setZoomLevel(Math.min(1.5, zoomLevel + 0.1))}
+                disabled={zoomLevel >= 1.5}
+              >
+                +
               </button>
             </div>
           </div>

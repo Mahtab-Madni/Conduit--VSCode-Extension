@@ -17,6 +17,7 @@ function App() {
   const [showHistory, setShowHistory] = useState(false);
   const [showDiffView, setShowDiffView] = useState(false);
   const [diffData, setDiffData] = useState(null);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   // Add debugging
   useEffect(() => {
@@ -41,6 +42,7 @@ function App() {
           console.log("Received authStatusUpdate:", message);
           setIsAuthenticated(message.isAuthenticated);
           setUser(message.user);
+          setIsLoggingIn(false);
           break;
         case "routeHistoryResponse":
           // Forward to HistoryPanel via custom event
@@ -164,6 +166,7 @@ function App() {
 
   const handleLogin = () => {
     if (vscode) {
+      setIsLoggingIn(true);
       vscode.postMessage({ command: "login" });
     }
   };
@@ -268,8 +271,12 @@ function App() {
               </button>
             </div>
           ) : (
-            <button className="login-btn" onClick={handleLogin}>
-              Login
+            <button
+              className="login-btn"
+              onClick={handleLogin}
+              disabled={isLoggingIn}
+            >
+              {isLoggingIn ? "Signing in..." : "Login"}
             </button>
           )}
           <button className="refresh-btn" onClick={handleRefresh}>
@@ -311,6 +318,7 @@ function App() {
               onSnapshotSelect={handleSnapshotSelect}
               onDiffSelect={handleDiffSelect}
               isAuthenticated={isAuthenticated}
+              isLoggingIn={isLoggingIn}
               onLogin={handleLogin}
             />
           </div>

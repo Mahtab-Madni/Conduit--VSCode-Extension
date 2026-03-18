@@ -230,6 +230,54 @@
   color: var(--vscode-button-foreground);
 }
 
+.zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--vscode-input-background);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 4px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.zoom-controls button {
+  background: transparent;
+  border: none;
+  padding: 6px 10px;
+  color: var(--vscode-input-foreground);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+  transition: all 0.2s ease;
+  border-right: 1px solid var(--vscode-input-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+}
+
+.zoom-controls button:last-child {
+  border-right: none;
+}
+
+.zoom-controls button:hover:not(:disabled) {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.zoom-controls button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.zoom-level {
+  padding: 0 8px;
+  font-size: 12px;
+  color: var(--vscode-input-foreground);
+  min-width: 45px;
+  text-align: center;
+}
+
 .diff-content {
   flex: 1;
   overflow: hidden;
@@ -276,12 +324,15 @@
 .code-content {
   flex: 1;
   overflow: auto;
+  overflow-x: hidden;
   padding: 16px;
   margin: 0;
   font-family: var(--vscode-editor-font-family);
   font-size: 13px;
   line-height: 1.4;
   background: var(--vscode-editor-background);
+  word-wrap: break-word;
+  word-break: break-word;
 }
 
 .code-line {
@@ -311,8 +362,28 @@
 
 .line-content {
   flex: 1;
-  white-space: pre;
-  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  overflow-x: hidden;
+}
+
+/* Highlight changed lines in side-by-side view */
+.code-line.unchanged {
+  background: var(--vscode-editor-background);
+}
+
+.code-line.changed {
+  background: rgba(255, 193, 7, 0.15);
+}
+
+/* Different colors for old (red) vs new (green) columns */
+.diff-column.old .code-line.changed {
+  background: rgba(244, 67, 54, 0.15);
+}
+
+.diff-column.new .code-line.changed {
+  background: rgba(76, 175, 80, 0.15);
 }
 
 .unified-diff {

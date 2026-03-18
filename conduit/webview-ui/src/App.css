@@ -85,6 +85,17 @@
   transform: translateY(0);
 }
 
+.login-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.login-btn:disabled:hover {
+  background: var(--vscode-button-background, #0e639c);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  transform: translateY(0);
+}
+
 .auth-info {
   display: flex;
   align-items: center;

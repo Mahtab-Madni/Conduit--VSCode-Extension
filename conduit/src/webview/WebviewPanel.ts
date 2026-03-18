@@ -1,10 +1,7 @@
 import * as vscode from "vscode";
 import { parse } from "@babel/parser";
 import traverse, { NodePath } from "@babel/traverse";
-import {
-  Node,
-  FunctionDeclaration,
-} from "@babel/types";
+import { Node, FunctionDeclaration } from "@babel/types";
 import { DetectedRoute } from "../detection/routeDetection";
 import { PayloadPredictor } from "../ai/payloadPredictor";
 import { getMongoConnector, initializeMongoDB } from "../db/mongoConnector";
@@ -158,6 +155,7 @@ export class ConduitPanel {
               message.label,
               message.payload,
               message.response,
+              message.request,
             );
             return;
           case "getRouteHistory":
@@ -184,11 +182,8 @@ export class ConduitPanel {
           case "restoreSnapshot":
             this.restoreSnapshot(message.snapshotId, message.snapshot);
             return;
-          case "updateSnapshotNotes":
-            this.updateSnapshotNotes(message.snapshotId, message.notes);
-            return;
-          case "updateSnapshotTags":
-            this.updateSnapshotTags(message.snapshotId, message.tags);
+          case "deleteSnapshot":
+            this.deleteSnapshot(message.snapshotId);
             return;
           case "exportPostman":
             this.exportPostman(message.routes, message.payloads);
@@ -302,6 +297,14 @@ export class ConduitPanel {
           startTime,
           endTime,
           responseTime: endTime - startTime,
+          requestDetails: {
+            method: route.method,
+            url: fullUrl,
+            headers: headers,
+            body: payload,
+            pathParams: {},
+            testedAt: new Date().toISOString(),
+          },
         },
       });
 
@@ -327,6 +330,14 @@ export class ConduitPanel {
           headers: {},
           error: error instanceof Error ? error.message : String(error),
           responseTime: 0,
+          requestDetails: {
+            method: route.method,
+            url: `${route.baseUrl || "http://localhost:3000"}${route.path}`,
+            headers: headers,
+            body: payload,
+            pathParams: {},
+            testedAt: new Date().toISOString(),
+          },
         },
       });
 
@@ -835,6 +846,7 @@ export class ConduitPanel {
     label: string,
     payload: any,
     response: any,
+    request?: any,
   ) {
     try {
       if (!this._apiService.isAuthenticated()) {
@@ -939,6 +951,14 @@ export class ConduitPanel {
         code: fileContent,
         label: label.trim(),
         lastPayload: payload,
+        lastRequest: request || {
+          method: route.method,
+          headers: {},
+          body: payload,
+          pathParams: {},
+          url: route.path,
+          testedAt: new Date().toISOString(),
+        },
         lastResponse: response || {},
         filePath: codeFilePath,
         fullPath: codeFilePath,
@@ -1183,52 +1203,39 @@ export class ConduitPanel {
     }
   }
 
-  private async updateSnapshotNotes(snapshotId: string, notes: string) {
+  private async deleteSnapshot(snapshotId: string) {
     try {
       if (!this._apiService.isAuthenticated()) {
         vscode.window.showErrorMessage("Authentication required");
         return;
       }
 
-      await this._apiService.updateSnapshot(snapshotId, { notes });
-
-      // Notify webview that notes were saved
-      this._panel.webview.postMessage({
-        command: "snapshotNotesSaved",
-        snapshotId: snapshotId,
-        notes: notes,
-      });
-
-      console.log("[WebviewPanel] Snapshot notes updated:", snapshotId);
-    } catch (error) {
-      console.error("Error updating snapshot notes:", error);
-      vscode.window.showErrorMessage(
-        `Failed to save notes: ${error instanceof Error ? error.message : String(error)}`,
+      // Show confirmation dialog
+      const deleteConfirm = await vscode.window.showWarningMessage(
+        "Delete this snapshot? This action cannot be undone.",
+        { modal: true },
+        "Delete",
+        "Cancel",
       );
-    }
-  }
 
-  private async updateSnapshotTags(snapshotId: string, tags: string[]) {
-    try {
-      if (!this._apiService.isAuthenticated()) {
-        vscode.window.showErrorMessage("Authentication required");
+      if (deleteConfirm !== "Delete") {
         return;
       }
 
-      await this._apiService.updateSnapshot(snapshotId, { tags });
+      await this._apiService.deleteSnapshot(snapshotId);
 
-      // Notify webview that tags were saved
+      // Notify webview that snapshot was deleted
       this._panel.webview.postMessage({
-        command: "snapshotTagsUpdated",
+        command: "snapshotDeleted",
         snapshotId: snapshotId,
-        tags: tags,
       });
 
-      console.log("[WebviewPanel] Snapshot tags updated:", snapshotId, tags);
+      vscode.window.showInformationMessage("Snapshot deleted successfully");
+      console.log("[WebviewPanel] Snapshot deleted:", snapshotId);
     } catch (error) {
-      console.error("Error updating snapshot tags:", error);
+      console.error("Error deleting snapshot:", error);
       vscode.window.showErrorMessage(
-        `Failed to save tags: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to delete snapshot: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }

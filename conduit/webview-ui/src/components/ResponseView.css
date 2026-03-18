@@ -545,3 +545,146 @@
 .btn-primary:active:not(:disabled) {
   transform: translateY(1px);
 }
+
+/* Request Details Section */
+.request-section {
+  border-bottom: 1px solid var(--vscode-panel-border, #2d2d30);
+}
+
+.request-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 22px;
+  background: linear-gradient(
+    to right,
+    rgba(45, 45, 48, 0.5),
+    rgba(45, 45, 48, 0.3)
+  );
+  border: none;
+  color: var(--vscode-editor-foreground, #d4d4d4);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.request-toggle:hover {
+  background: linear-gradient(
+    to right,
+    rgba(55, 55, 61, 0.7),
+    rgba(55, 55, 61, 0.5)
+  );
+}
+
+.request-content {
+  padding: 16px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.request-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.item-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--vscode-descriptionForeground, #cccccc99);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.item-value {
+  font-size: 12px;
+  color: var(--vscode-editor-foreground, #d4d4d4);
+  word-break: break-word;
+}
+
+.url-value {
+  font-family: var(
+    --vscode-editor-font-family,
+    "SF Mono",
+    Monaco,
+    "Cascadia Code",
+    "Roboto Mono",
+    Consolas,
+    "Courier New",
+    monospace
+  );
+  color: #4fc1ff;
+  background-color: var(--vscode-textCodeBlock-background, #0d1117);
+  padding: 8px 10px;
+  border-radius: 3px;
+  border: 1px solid var(--vscode-panel-border, #2d2d30);
+  overflow-x: auto;
+}
+
+.method-value {
+  font-family: var(
+    --vscode-editor-font-family,
+    "SF Mono",
+    Monaco,
+    "Cascadia Code",
+    "Roboto Mono",
+    Consolas,
+    "Courier New",
+    monospace
+  );
+  font-weight: 600;
+  color: #4ec9b0;
+}
+
+.headers-value pre,
+.params-value pre,
+.body-value pre {
+  margin: 0;
+  padding: 10px;
+  background-color: var(--vscode-textCodeBlock-background, #0d1117);
+  border: 1px solid var(--vscode-panel-border, #2d2d30);
+  border-radius: 3px;
+  font-family: var(
+    --vscode-editor-font-family,
+    "SF Mono",
+    Monaco,
+    "Cascadia Code",
+    "Roboto Mono",
+    Consolas,
+    "Courier New",
+    monospace
+  );
+  font-size: 11px;
+  line-height: 1.4;
+  overflow-x: auto;
+  color: var(--vscode-editor-foreground, #d4d4d4);
+}
+
+.response-meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.status-badge {
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(
+    --vscode-editor-font-family,
+    "SF Mono",
+    Monaco,
+    "Cascadia Code",
+    "Roboto Mono",
+    Consolas,
+    "Courier New",
+    monospace
+  );
+}

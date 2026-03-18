@@ -248,6 +248,27 @@ const Playground = ({ route, onSendRequest }) => {
     return () => window.removeEventListener("requestResponse", handleResponse);
   }, []);
 
+  // Listen for loadPayload event from snapshot restore
+  useEffect(() => {
+    const handleLoadPayload = (event) => {
+      console.log(
+        "[Playground] Loading payload from snapshot:",
+        event.detail.payload,
+      );
+      if (event.detail.payload) {
+        setPayload(JSON.stringify(event.detail.payload, null, 2));
+        setFormPayload(event.detail.payload);
+      }
+    };
+
+    console.log("[Playground] Registering loadPayload listener");
+    window.addEventListener("loadPayload", handleLoadPayload);
+    return () => {
+      console.log("[Playground] Removing loadPayload listener");
+      window.removeEventListener("loadPayload", handleLoadPayload);
+    };
+  }, []);
+
   // Listen for AI prediction events
   useEffect(() => {
     const handlePredictionLoading = () => {
@@ -376,8 +397,8 @@ const Playground = ({ route, onSendRequest }) => {
   useEffect(() => {
     localStorage.setItem("conduit-auth-token", authToken);
 
-    // Automatically add/update auth token in headers if token exists
-    if (authToken) {
+    // Automatically add/update auth token in headers only if route requires auth
+    if (authToken && requiresAuth) {
       try {
         const currentHeadersObj = JSON.parse(headers || "{}");
         const currentAuth = currentHeadersObj["Authorization"] || "";
@@ -399,9 +420,10 @@ const Playground = ({ route, onSendRequest }) => {
         }
       } catch (e) {
         // If headers aren't valid JSON, skip the update
+        console.error("Failed to parse headers JSON for auth token update:", e);
       }
     } else {
-      // When token is cleared, remove Authorization header if it's a Bearer token
+      // When token is cleared or route doesn't require auth, remove Authorization header if it's a Bearer token
       try {
         const currentHeadersObj = JSON.parse(headers || "{}");
         const currentAuth = currentHeadersObj["Authorization"] || "";
@@ -415,7 +437,7 @@ const Playground = ({ route, onSendRequest }) => {
         // If headers aren't valid JSON, skip the update
       }
     }
-  }, [authToken, headers]);
+  }, [authToken, headers, requiresAuth]);
 
   const handleSendRequest = () => {
     if (!route) return;
@@ -511,11 +533,28 @@ const Playground = ({ route, onSendRequest }) => {
           ? JSON.parse(payload || "{}")
           : {};
 
+      let parsedHeaders = {};
+      if (headers.trim()) {
+        try {
+          parsedHeaders = JSON.parse(headers);
+        } catch (e) {
+          parsedHeaders = {};
+        }
+      }
+
       vscode.postMessage({
         command: "saveCheckpoint",
         route: route,
         label: checkpointLabel.trim(),
         payload: parsedPayload,
+        request: {
+          method: route.method,
+          headers: parsedHeaders,
+          body: parsedPayload,
+          pathParams: pathParams || {},
+          url: fullUrl || suggestedUrl || `${baseUrl}${route.path}`,
+          testedAt: new Date().toISOString(),
+        },
         response: {
           statusCode: response?.status,
           body: response?.data,
@@ -794,9 +833,9 @@ const Playground = ({ route, onSendRequest }) => {
         <div className="section">
           <div className="section-header">
             <label className="section-title">Headers (JSON)</label>
-            {authToken && (
+            {authToken && requiresAuth && (
               <div className="auth-section">
-                <span className="auth-label">🔐 Auth Token Configured</span>
+                <span className="auth-label">Auth Token Configured</span>
               </div>
             )}
           </div>
@@ -941,6 +980,7 @@ const Playground = ({ route, onSendRequest }) => {
                     route: route,
                     label: checkpointData.label,
                     payload: payload ? JSON.parse(payload) : {},
+                    request: checkpointData.request,
                     response: checkpointData.response,
                   });
                 }

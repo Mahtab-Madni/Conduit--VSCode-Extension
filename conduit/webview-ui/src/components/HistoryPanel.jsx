@@ -6,6 +6,7 @@ const HistoryPanel = ({
   onSnapshotSelect,
   onDiffSelect,
   isAuthenticated,
+  isLoggingIn,
   onLogin,
 }) => {
   const [snapshots, setSnapshots] = useState([]);
@@ -16,8 +17,6 @@ const HistoryPanel = ({
   const [dateFilter, setDateFilter] = useState("all"); // 'today', 'week', 'month', 'all'
   const [filterModeSelection, setFilterModeSelection] = useState(null);
   const [expandedSnapshot, setExpandedSnapshot] = useState(null);
-  const [editingNotes, setEditingNotes] = useState({});
-  const [editingTags, setEditingTags] = useState({});
 
   // Debug logging
   useEffect(() => {
@@ -99,40 +98,69 @@ const HistoryPanel = ({
           setLoading(false);
           break;
 
-        case "snapshotNotesSaved":
-          // Update snapshot in local state
-          setSnapshots((prev) =>
-            prev.map((snap) =>
-              snap._id === message.snapshotId
-                ? { ...snap, notes: message.notes }
-                : snap,
-            ),
-          );
-          setEditingNotes((prev) => {
-            const updated = { ...prev };
-            delete updated[message.snapshotId];
-            return updated;
-          });
-          break;
-
-        case "snapshotTagsUpdated":
-          // Update snapshot in local state
-          setSnapshots((prev) =>
-            prev.map((snap) =>
-              snap._id === message.snapshotId
-                ? { ...snap, tags: message.tags }
-                : snap,
-            ),
-          );
-          setEditingTags((prev) => {
-            const updated = { ...prev };
-            delete updated[message.snapshotId];
-            return updated;
-          });
-          break;
-
         case "snapshotRestored":
           console.log("[HistoryPanel] Snapshot restored:", message.snapshotId);
+          console.log(
+            "[HistoryPanel] Snapshot data received:",
+            JSON.stringify(message.data, null, 2),
+          );
+          // Load the restored payload into the Playground
+          // Try multiple sources: predictedPayload > lastPayload > lastRequest.body
+          let payloadToLoad = null;
+          if (message.data) {
+            if (message.data.predictedPayload) {
+              payloadToLoad = message.data.predictedPayload;
+              console.log(
+                "[HistoryPanel] Using predictedPayload:",
+                payloadToLoad,
+              );
+            } else if (message.data.lastPayload) {
+              payloadToLoad = message.data.lastPayload;
+              console.log("[HistoryPanel] Using lastPayload:", payloadToLoad);
+            } else if (message.data.lastRequest?.body) {
+              payloadToLoad = message.data.lastRequest.body;
+              console.log(
+                "[HistoryPanel] Using lastRequest.body:",
+                payloadToLoad,
+              );
+            } else if (message.data.lastResponse?.body) {
+              payloadToLoad = message.data.lastResponse.body;
+              console.log(
+                "[HistoryPanel] Using lastResponse.body:",
+                payloadToLoad,
+              );
+            }
+
+            if (payloadToLoad) {
+              console.log(
+                "[HistoryPanel] Dispatching loadPayload event with:",
+                payloadToLoad,
+              );
+              window.dispatchEvent(
+                new CustomEvent("loadPayload", {
+                  detail: { payload: payloadToLoad },
+                }),
+              );
+            } else {
+              console.warn(
+                "[HistoryPanel] No payload data available in snapshot",
+                message.data,
+              );
+            }
+          }
+          break;
+
+        case "snapshotDeleted":
+          // Remove deleted snapshot from local state
+          setSnapshots((prev) =>
+            prev.filter((snap) => snap._id !== message.snapshotId),
+          );
+          setExpandedSnapshot(null);
+          setSelectedSnapshots((prev) => {
+            const updated = new Set(prev);
+            updated.delete(message.snapshotId);
+            return updated;
+          });
           break;
 
         default:
@@ -196,22 +224,10 @@ const HistoryPanel = ({
     });
   };
 
-  const handleSaveNotes = (snapshotId, notes) => {
+  const handleDeleteSnapshot = (snapshot) => {
     window.vscode.postMessage({
-      command: "updateSnapshotNotes",
-      snapshotId: snapshotId,
-      notes: notes,
-    });
-  };
-
-  const handleSaveTags = (snapshotId, tags) => {
-    window.vscode.postMessage({
-      command: "updateSnapshotTags",
-      snapshotId: snapshotId,
-      tags: tags
-        .split(",")
-        .map((t) => t.trim())
-        .filter((t) => t),
+      command: "deleteSnapshot",
+      snapshotId: snapshot._id,
     });
   };
 
@@ -320,12 +336,16 @@ const HistoryPanel = ({
         </div>
         <div className="auth-required">
           <div className="auth-content">
-            <p>🔒 Authentication Required</p>
+            <p>Authentication Required</p>
             <p>
               Sign in with GitHub to view and sync route history across devices.
             </p>
-            <button className="login-button" onClick={onLogin}>
-              Sign in with GitHub
+            <button
+              className="login-button"
+              onClick={onLogin}
+              disabled={isLoggingIn}
+            >
+              {isLoggingIn ? "Signing in..." : "Sign in with GitHub"}
             </button>
           </div>
         </div>
@@ -535,17 +555,6 @@ const HistoryPanel = ({
                       </span>
                     </div>
                   )}
-
-                  {/* Tags display */}
-                  {snapshot.tags && snapshot.tags.length > 0 && (
-                    <div className="tags-display">
-                      {snapshot.tags.map((tag) => (
-                        <span key={tag} className="tag-badge">
-                          #{tag}
-                        </span>
-                      ))}
-                    </div>
-                  )}
                 </div>
 
                 {index < filteredSnapshots.length - 1 && (
@@ -556,143 +565,6 @@ const HistoryPanel = ({
               {/* Expanded details section */}
               {expandedSnapshot === snapshot._id && (
                 <div className="snapshot-detail-panel">
-                  {/* Notes section */}
-                  <div className="detail-section">
-                    <label className="section-title">📝 Notes</label>
-                    {editingNotes[snapshot._id] !== undefined ? (
-                      <div className="note-edit">
-                        <textarea
-                          value={editingNotes[snapshot._id]}
-                          onChange={(e) =>
-                            setEditingNotes((prev) => ({
-                              ...prev,
-                              [snapshot._id]: e.target.value,
-                            }))
-                          }
-                          placeholder="Add notes about this snapshot..."
-                          className="note-textarea"
-                        />
-                        <div className="note-actions">
-                          <button
-                            onClick={() =>
-                              handleSaveNotes(
-                                snapshot._id,
-                                editingNotes[snapshot._id],
-                              )
-                            }
-                            className="note-save"
-                          >
-                            Save
-                          </button>
-                          <button
-                            onClick={() =>
-                              setEditingNotes((prev) => {
-                                const updated = { ...prev };
-                                delete updated[snapshot._id];
-                                return updated;
-                              })
-                            }
-                            className="note-cancel"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="note-display">
-                        <p className="note-text">
-                          {snapshot.notes && snapshot.notes.trim() ? (
-                            snapshot.notes
-                          ) : (
-                            <span className="no-notes">No notes added</span>
-                          )}
-                        </p>
-                        <button
-                          onClick={() =>
-                            setEditingNotes((prev) => ({
-                              ...prev,
-                              [snapshot._id]: snapshot.notes || "",
-                            }))
-                          }
-                          className="edit-note-btn"
-                        >
-                          Edit
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Tags section */}
-                  <div className="detail-section">
-                    <label className="section-title">🏷️ Tags</label>
-                    {editingTags[snapshot._id] !== undefined ? (
-                      <div className="tags-edit">
-                        <input
-                          type="text"
-                          value={editingTags[snapshot._id]}
-                          onChange={(e) =>
-                            setEditingTags((prev) => ({
-                              ...prev,
-                              [snapshot._id]: e.target.value,
-                            }))
-                          }
-                          placeholder="Enter tags separated by commas"
-                          className="tags-input"
-                        />
-                        <div className="tags-actions">
-                          <button
-                            onClick={() =>
-                              handleSaveTags(
-                                snapshot._id,
-                                editingTags[snapshot._id],
-                              )
-                            }
-                            className="tags-save"
-                          >
-                            Save
-                          </button>
-                          <button
-                            onClick={() =>
-                              setEditingTags((prev) => {
-                                const updated = { ...prev };
-                                delete updated[snapshot._id];
-                                return updated;
-                              })
-                            }
-                            className="tags-cancel"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="tags-display-edit">
-                        <div className="tags-list">
-                          {snapshot.tags && snapshot.tags.length > 0 ? (
-                            snapshot.tags.map((tag) => (
-                              <span key={tag} className="tag-badge">
-                                #{tag}
-                              </span>
-                            ))
-                          ) : (
-                            <span className="no-tags">No tags</span>
-                          )}
-                        </div>
-                        <button
-                          onClick={() =>
-                            setEditingTags((prev) => ({
-                              ...prev,
-                              [snapshot._id]: snapshot.tags?.join(", ") || "",
-                            }))
-                          }
-                          className="edit-tags-btn"
-                        >
-                          Edit
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
                   {/* Restore section */}
                   <div className="detail-section">
                     <label className="section-title">♻️ Restore</label>
@@ -700,10 +572,25 @@ const HistoryPanel = ({
                       onClick={() => handleRestoreSnapshot(snapshot)}
                       className="restore-button"
                     >
-                      Load Payload & Code
+                      Load Payload
                     </button>
                     <p className="restore-hint">
-                      Load this snapshot's payload into the editor and code view
+                      Load this snapshot's payload into the editor
+                    </p>
+                  </div>
+
+                  {/* Delete section */}
+                  <div className="detail-section">
+                    <label className="section-title">🗑️ Delete</label>
+                    <button
+                      onClick={() => handleDeleteSnapshot(snapshot)}
+                      className="delete-button"
+                    >
+                      Delete Snapshot
+                    </button>
+                    <p className="delete-hint">
+                      Only you can delete this snapshot. This action cannot be
+                      undone.
                     </p>
                   </div>
 
@@ -715,9 +602,10 @@ const HistoryPanel = ({
                         <div className="response-status">
                           <span className="label">Status:</span>
                           <span
-                            className={`status-badge status-${Math.floor(snapshot.lastResponse.status / 100)}`}
+                            className={`status-badge status-${Math.floor((snapshot.lastResponse.statusCode || snapshot.lastResponse.status || 0) / 100)}`}
                           >
-                            {snapshot.lastResponse.status}
+                            {snapshot.lastResponse.statusCode ||
+                              snapshot.lastResponse.status}
                           </span>
                         </div>
                         {snapshot.lastResponse.timestamp && (

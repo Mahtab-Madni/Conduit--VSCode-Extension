@@ -445,11 +445,13 @@ export class ConduitApiService {
       routePath: string;
       method: string;
       code: string;
-      predictedPayload: any;
+      predictedPayload?: any;
+      lastPayload?: any;
+      lastRequest?: any;
+      lastResponse?: any;
       filePath: string;
       createdAt: string;
-      notes: string;
-      tags: string[];
+      middleware?: string[];
     };
   }> {
     return this.makeRequest(`/api/snapshots/${snapshotId}/restore`);

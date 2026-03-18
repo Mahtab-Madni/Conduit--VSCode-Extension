@@ -7,6 +7,7 @@ const ResponseView = ({ response, isLoading, onCheckpoint }) => {
   const [showCheckpointModal, setShowCheckpointModal] = useState(false);
   const [checkpointLabel, setCheckpointLabel] = useState("");
   const [checkpointLoading, setCheckpointLoading] = useState(false);
+  const [showRequestDetails, setShowRequestDetails] = useState(false);
 
   const getStatusClass = (status) => {
     if (!status) return "";
@@ -56,6 +57,14 @@ const ResponseView = ({ response, isLoading, onCheckpoint }) => {
       await onCheckpoint({
         label: checkpointLabel.trim(),
         payload: response.lastPayload,
+        request: response.requestDetails || {
+          method: response.method || "GET",
+          headers: response.headers || {},
+          body: response.data || {},
+          pathParams: {},
+          url: response.url || "",
+          testedAt: new Date().toISOString(),
+        },
         response: {
           statusCode: response.status,
           body: response.data,
@@ -185,6 +194,109 @@ const ResponseView = ({ response, isLoading, onCheckpoint }) => {
       </div>
 
       <div className="response-content">
+        {/* Request Details Section */}
+        {response.requestDetails && (
+          <div className="request-section">
+            <button
+              className="request-toggle"
+              onClick={() => setShowRequestDetails(!showRequestDetails)}
+            >
+              <span
+                className={`toggle-icon ${showRequestDetails ? "expanded" : "collapsed"}`}
+              >
+                ▼
+              </span>
+              Request Details
+            </button>
+
+            {showRequestDetails && (
+              <div className="request-content">
+                {/* Request URL */}
+                {response.requestDetails.url && (
+                  <div className="request-item">
+                    <div className="item-label">URL:</div>
+                    <div className="item-value url-value">
+                      {response.requestDetails.url}
+                    </div>
+                  </div>
+                )}
+
+                {/* Request Method */}
+                <div className="request-item">
+                  <div className="item-label">Method:</div>
+                  <div className="item-value method-value">
+                    {response.requestDetails.method || "GET"}
+                  </div>
+                </div>
+
+                {/* Request Headers */}
+                {response.requestDetails.headers &&
+                  Object.keys(response.requestDetails.headers).length > 0 && (
+                    <div className="request-item">
+                      <div className="item-label">Headers:</div>
+                      <div className="item-value headers-value">
+                        <pre>
+                          {JSON.stringify(
+                            response.requestDetails.headers,
+                            null,
+                            2,
+                          )}
+                        </pre>
+                      </div>
+                    </div>
+                  )}
+
+                {/* Path Parameters */}
+                {response.requestDetails.pathParams &&
+                  Object.keys(response.requestDetails.pathParams).length >
+                    0 && (
+                    <div className="request-item">
+                      <div className="item-label">Path Parameters:</div>
+                      <div className="item-value params-value">
+                        <pre>
+                          {JSON.stringify(
+                            response.requestDetails.pathParams,
+                            null,
+                            2,
+                          )}
+                        </pre>
+                      </div>
+                    </div>
+                  )}
+
+                {/* Request Body */}
+                {response.requestDetails.body &&
+                  Object.keys(response.requestDetails.body).length > 0 && (
+                    <div className="request-item">
+                      <div className="item-label">Request Body:</div>
+                      <div className="item-value body-value">
+                        <pre>
+                          {JSON.stringify(
+                            response.requestDetails.body,
+                            null,
+                            2,
+                          )}
+                        </pre>
+                      </div>
+                    </div>
+                  )}
+
+                {/* Tested Time */}
+                {response.requestDetails.testedAt && (
+                  <div className="request-item">
+                    <div className="item-label">Tested At:</div>
+                    <div className="item-value">
+                      {new Date(
+                        response.requestDetails.testedAt,
+                      ).toLocaleString()}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Headers Toggle */}
         {response.headers && Object.keys(response.headers).length > 0 && (
           <div className="headers-section">
