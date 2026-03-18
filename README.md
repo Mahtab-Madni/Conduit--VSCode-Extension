@@ -641,9 +641,9 @@ This project is licensed under the **ISC License**. See individual files for det
 
 For issues, questions, or feature requests:
 
-- **GitHub Issues**: [Report bugs or suggest features](https://github.com/yourname/conduit/issues)
-- **Email**: [support@example.com](mailto:support@example.com)
-- **VS Code Marketplace**: [Conduit Extension](https://marketplace.visualstudio.com/)
+- **GitHub Issues**: [Report bugs or suggest features](https://github.com/Mahtab-Madni/Conduit--VSCode-Extension/issues)
+- **Email**: [support@example.com](mailto:mahtabjmi2005@gmail.com)
+- **VS Code Marketplace**: [Conduit Extension](https://marketplace.visualstudio.com/items?itemName=MahtabMadni123.conduit-api-playground)
 
 ---
 
