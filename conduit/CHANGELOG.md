@@ -3,11 +3,13 @@
 ### Fixed
 
 - Fixed duplicate route detection on first panel open
-  - The file watcher was triggering simultaneously with the direct refresh call
-  - Added `isRefreshing` flag to prevent overlapping detection operations
-  - Routes now display correct count (e.g., 37 instead of 74) on initial load
-- Only detected routes once per refresh cycle
-- Refresh button and file changes still work correctly
+  - Root cause: `vscode.window.withProgress` was not being awaited
+  - Detection flag (`isRefreshing`) was reset before detection completed
+  - File watcher would trigger during ongoing detection causing duplicates
+  - Solution: Added `await` to `vscode.window.withProgress` to ensure flag persists until detection finishes
+  - Routes now display correct count on initial panel open (e.g., 37 instead of 74)
+- Refresh button and file changes continue to work correctly
+- No routes duplicated across refresh cycles
 
 ## [0.1.0] - 2026-03-18
 
