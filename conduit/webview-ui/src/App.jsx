@@ -19,16 +19,6 @@ function App() {
   const [diffData, setDiffData] = useState(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  // Add debugging
-  useEffect(() => {
-    console.log("App component mounted");
-    console.log("VS Code API available:", !!vscode);
-  }, []);
-
-  useEffect(() => {
-    console.log("Routes updated:", routes);
-  }, [routes]);
-
   useEffect(() => {
     const handleMessage = (event) => {
       const message = event.data;
@@ -39,7 +29,6 @@ function App() {
           setIsLoading(false);
           break;
         case "authStatusUpdate":
-          console.log("Received authStatusUpdate:", message);
           setIsAuthenticated(message.isAuthenticated);
           setUser(message.user);
           setIsLoggingIn(false);
@@ -65,6 +54,13 @@ function App() {
           window.dispatchEvent(
             new CustomEvent("requestResponse", {
               detail: message.response,
+            }),
+          );
+          break;
+        case "checkpointSaved":
+          window.dispatchEvent(
+            new CustomEvent("checkpointSaved", {
+              detail: message,
             }),
           );
           break;
@@ -263,9 +259,24 @@ function App() {
           </button>
           {isAuthenticated && user ? (
             <div className="auth-info">
-              <span className="user-name">
-                {user.displayName || user.username || "User"}
-              </span>
+              <div
+                className="user-avatar"
+                title={user.displayName || user.username || "User"}
+              >
+                {user.avatarUrl ? (
+                  <img
+                    src={user.avatarUrl}
+                    alt={user.displayName || user.username}
+                    className="avatar-img"
+                  />
+                ) : (
+                  <span className="avatar-initial">
+                    {(user.displayName || user.username || "U")
+                      .charAt(0)
+                      .toUpperCase()}
+                  </span>
+                )}
+              </div>
               <button className="logout-btn" onClick={handleLogout}>
                 Logout
               </button>

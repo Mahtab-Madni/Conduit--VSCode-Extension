@@ -17,11 +17,6 @@ let apiService: ConduitApiService;
 let snapshotService: SnapshotService;
 
 export function activate(context: vscode.ExtensionContext) {
-  console.log("[Conduit] Extension activation started");
-
-  // Show a visible notification for debugging
-  vscode.window.showInformationMessage("Conduit extension is activating...");
-
   try {
     // Initialize route detector
     const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
@@ -29,19 +24,14 @@ export function activate(context: vscode.ExtensionContext) {
       vscode.window.showErrorMessage(
         "Conduit requires an open workspace folder",
       );
-      console.log("[Conduit] No workspace folder found, exiting activation");
       return;
     }
-
-    console.log("[Conduit] Workspace root:", workspaceRoot);
     routeDetector = new RouteDetector(workspaceRoot);
 
     // Initialize API service
-    console.log("[Conduit] Initializing API service...");
     apiService = new ConduitApiService(context);
 
     // Initialize snapshot service
-    console.log("[Conduit] Initializing snapshot service...");
     snapshotService = new SnapshotService(context, apiService, routeDetector);
 
     // Initialize MongoDB connection (non-blocking)
@@ -58,7 +48,6 @@ export function activate(context: vscode.ExtensionContext) {
       });
 
     // Register URI handler for OAuth callback first (so we can reference it in commands)
-    console.log("[Conduit] Registering URI handler...");
     const uriHandler = vscode.window.registerUriHandler({
       handleUri: async (uri: vscode.Uri) => {
         console.log("[Conduit] URI handler called:", {
@@ -70,34 +59,14 @@ export function activate(context: vscode.ExtensionContext) {
           toString: uri.toString(),
         });
 
-        // More detailed logging for debugging
-        console.log("[Conduit] Raw URI string:", uri.toString());
-        console.log("[Conduit] URI query parameters:", uri.query);
-
         if (uri.path === "/auth-success" || uri.path === "auth-success") {
-          console.log("[Conduit] Auth success path detected, parsing token...");
-
           // Parse query parameters more robustly
           const params = new URLSearchParams(uri.query);
           const token = params.get("token");
 
-          console.log(
-            "[Conduit] Query params object:",
-            Object.fromEntries(params.entries()),
-          );
-          console.log(
-            "[Conduit] Extracted token:",
-            token ? `Token present (${token.length} chars)` : "Missing",
-          );
-
           if (token) {
             try {
-              console.log("[Conduit] Starting authentication process...");
               await apiService.authenticate(token);
-
-              console.log(
-                "[Conduit] Authentication completed, fetching user info...",
-              );
               const user = await apiService.getCurrentUser();
               console.log(
                 "[Conduit] Authentication successful for user:",
@@ -112,24 +81,12 @@ export function activate(context: vscode.ExtensionContext) {
               setTimeout(() => {
                 currentPanel?.updateAuthStatus();
               }, 100);
-
-              // Also show success in console
-              console.log("[Conduit] Login process completed successfully");
             } catch (error: any) {
-              console.error("[Conduit] Authentication error:", error);
-              console.error("[Conduit] Error stack:", error.stack);
-
               vscode.window.showErrorMessage(
                 `Login failed: ${error?.message || error}`,
               );
             }
           } else {
-            console.warn("[Conduit] No token found in URI query");
-            console.warn(
-              "[Conduit] Available query params:",
-              Object.keys(Object.fromEntries(params.entries())),
-            );
-
             vscode.window.showErrorMessage(
               "Login failed: No authentication token received",
             );
@@ -139,14 +96,10 @@ export function activate(context: vscode.ExtensionContext) {
             "[Conduit] URI does not match auth-success path:",
             uri.path,
           );
-          console.log(
-            "[Conduit] Expected paths: '/auth-success' or 'auth-success'",
-          );
         }
       },
     });
     context.subscriptions.push(uriHandler);
-    console.log("[Conduit] URI handler registered successfully");
 
     // Register commands
     const commands = [
@@ -193,18 +146,18 @@ export function activate(context: vscode.ExtensionContext) {
 
                 if (isConnected) {
                   vscode.window.showInformationMessage(
-                    "✅ MongoDB connection successful!",
+                    "MongoDB connection successful!",
                   );
                 } else {
                   vscode.window.showWarningMessage(
-                    "⚠️ MongoDB connection failed. Please check your connection settings.",
+                    "MongoDB connection failed. Please check your connection settings.",
                   );
                 }
               },
             );
           } catch (error) {
             vscode.window.showErrorMessage(
-              `❌ MongoDB connection test failed: ${error}`,
+              `MongoDB connection test failed: ${error}`,
             );
           }
         },
@@ -299,7 +252,6 @@ export function activate(context: vscode.ExtensionContext) {
 
       // Authentication commands
       vscode.commands.registerCommand("conduit.login", async () => {
-        console.log("[Conduit] Login command triggered");
         try {
           // Check if already authenticated
           if (await apiService.isAuthenticated()) {
@@ -315,9 +267,7 @@ export function activate(context: vscode.ExtensionContext) {
 
           // First try VS Code's built-in authentication
           try {
-            console.log("[Conduit] Attempting VS Code authentication...");
             await apiService.authenticateWithVscode();
-
             const user = await apiService.getCurrentUser();
             vscode.window.showInformationMessage(
               `Successfully logged in as ${user.displayName || user.username}!`,
@@ -328,19 +278,12 @@ export function activate(context: vscode.ExtensionContext) {
             }, 100);
             return;
           } catch (vscodeAuthError) {
-            console.log(
-              "[Conduit] VS Code auth failed, falling back to browser flow:",
-              vscodeAuthError,
-            );
           }
 
           // Fallback to browser-based flow
           const authUrl = apiService.getAuthUrl();
-          console.log("[Conduit] Auth URL:", authUrl);
           const loginUri = vscode.Uri.parse(authUrl);
-          console.log("[Conduit] Opening browser...");
           await vscode.env.openExternal(loginUri);
-          console.log("[Conduit] Browser opened successfully");
 
           // Show instruction message with better guidance
           vscode.window
@@ -374,7 +317,6 @@ export function activate(context: vscode.ExtensionContext) {
               }
             });
         } catch (error) {
-          console.error("[Conduit] Login error:", error);
           vscode.window.showErrorMessage(`Login failed: ${error}`);
         }
       }),
@@ -389,15 +331,10 @@ export function activate(context: vscode.ExtensionContext) {
       }),
 
       vscode.commands.registerCommand("conduit.checkAuthStatus", async () => {
-        console.log("[Conduit] Checking authentication status...");
         if (await apiService.isAuthenticated()) {
           try {
             const user = await apiService.getCurrentUser();
-            vscode.window.showInformationMessage(
-              `Logged in as ${user.displayName || user.username}`,
-            );
           } catch (error) {
-            console.error("[Conduit] Error fetching user info:", error);
             vscode.window.showWarningMessage(
               "Authentication expired. Please log in again.",
             );
@@ -461,18 +398,14 @@ export function activate(context: vscode.ExtensionContext) {
         const testUri = vscode.Uri.parse(
           "vscode://conduit/auth-success?token=test123",
         );
-        console.log("[Conduit] Testing URI handler with:", testUri.toString());
         vscode.window.showInformationMessage(
           `Testing URI handler: ${testUri.toString()}`,
         );
-        // The URI handler should be called automatically by VS Code
       }),
 
       // Manual URI test command
       vscode.commands.registerCommand("conduit.testManualUri", async () => {
-        console.log("[Conduit] Manually triggering URI handler...");
         const testToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test";
-        console.log("[Conduit] Test token:", testToken);
 
         // Test authentication directly
         try {
@@ -489,49 +422,19 @@ export function activate(context: vscode.ExtensionContext) {
       // Debug auth storage command
       vscode.commands.registerCommand("conduit.debugAuthStorage", async () => {
         try {
-          console.log("[Conduit] Debugging authentication storage...");
-
           // Force reload token
           const isAuth = await apiService.isAuthenticated();
-          console.log("[Conduit] Is authenticated:", isAuth);
 
           // Check secrets directly
           const storedToken = await context.secrets.get("conduit.auth.token");
-          console.log(
-            "[Conduit] Token in secrets:",
-            storedToken ? "Present" : "Missing",
-          );
 
           vscode.window.showInformationMessage(
             `Auth Debug: Authenticated=${isAuth}, Token in secrets=${storedToken ? "Yes" : "No"}`,
           );
         } catch (error) {
           console.error("[Conduit] Debug error:", error);
-          vscode.window.showErrorMessage(`Debug failed: ${error}`);
         }
       }),
-      // Snapshot commands
-      vscode.commands.registerCommand("conduit.forceSnapshot", async () => {
-        await snapshotService.forceSnapshotCurrentFile();
-      }),
-
-      vscode.commands.registerCommand("conduit.viewHistory", async () => {
-        // This will be implemented when we create the HistoryPanel
-        vscode.window.showInformationMessage("History panel coming soon!");
-      }),
-
-      vscode.commands.registerCommand(
-        "conduit.toggleAutoSnapshot",
-        async () => {
-          const config = vscode.workspace.getConfiguration("conduit.snapshot");
-          const currentValue = config.get("enabled", true);
-          await config.update("enabled", !currentValue, true);
-
-          vscode.window.showInformationMessage(
-            `Auto-snapshot ${!currentValue ? "enabled" : "disabled"}`,
-          );
-        },
-      ),
     ];
 
     context.subscriptions.push(...commands);
@@ -555,12 +458,10 @@ export function activate(context: vscode.ExtensionContext) {
         }
       });
 
-    console.log("[Conduit] Extension activation completed successfully");
     vscode.window.showInformationMessage(
       "Conduit extension activated successfully!",
     );
   } catch (error) {
-    console.error("[Conduit] Extension activation failed:", error);
     vscode.window.showErrorMessage(
       `Conduit extension failed to activate: ${error}`,
     );

@@ -57,10 +57,6 @@ export class MongoConnector {
     }
 
     try {
-      console.log(
-        `[MongoDB] Attempting to connect to ${this.connectionConfig.uri}`,
-      );
-
       this.client = new MongoClient(this.connectionConfig.uri, {
         serverApi: {
           version: "1",
@@ -81,15 +77,8 @@ export class MongoConnector {
 
       this.db = this.client.db(this.connectionConfig.database);
       this.isConnected = true;
-
-      console.log(
-        `[MongoDB] Connected successfully to ${this.connectionConfig.database}`,
-      );
       return true;
     } catch (error) {
-      console.log(
-        `[MongoDB] Connection failed (falling back to AI-only mode): ${error}`,
-      );
       this.isConnected = false;
       this.client = null;
       this.db = null;
@@ -515,7 +504,6 @@ export class MongoConnector {
 
       return true;
     } catch (error) {
-      console.log(`[MongoDB] Connection test failed: ${error}`);
       return false;
     } finally {
       if (testClient) {

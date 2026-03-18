@@ -18,17 +18,6 @@ const HistoryPanel = ({
   const [filterModeSelection, setFilterModeSelection] = useState(null);
   const [expandedSnapshot, setExpandedSnapshot] = useState(null);
 
-  // Debug logging
-  useEffect(() => {
-    console.log("[HistoryPanel] Component mounted/updated", {
-      isAuthenticated,
-      selectedRoute: selectedRoute?.path,
-      loading,
-      snapshotsCount: snapshots.length,
-      error,
-    });
-  }, [isAuthenticated, selectedRoute, loading, snapshots, error]);
-
   // Fetch snapshots when route changes
   useEffect(() => {
     if (selectedRoute && isAuthenticated) {
@@ -41,24 +30,10 @@ const HistoryPanel = ({
 
   const fetchSnapshots = useCallback(() => {
     if (!selectedRoute) return;
-
-    console.log(
-      "[HistoryPanel] fetchSnapshots called for route:",
-      selectedRoute.path,
-    );
     setLoading(true);
     setError(null);
 
     try {
-      console.log(
-        "[HistoryPanel] Sending getRouteHistory message with route:",
-        {
-          method: selectedRoute.method,
-          path: selectedRoute.path,
-          filePath: selectedRoute.filePath,
-        },
-      );
-
       // Send message to extension to fetch snapshots
       // Let the extension calculate the correct routeId using MD5
       window.vscode.postMessage({
@@ -81,15 +56,9 @@ const HistoryPanel = ({
   useEffect(() => {
     const handleMessage = (event) => {
       const message = event.data;
-      console.log("[HistoryPanel] Message received:", message);
 
       switch (message.command) {
         case "routeHistoryResponse":
-          console.log("[HistoryPanel] Route history response:", {
-            success: message.success,
-            dataLength: message.data?.length,
-            error: message.error,
-          });
           if (message.success) {
             setSnapshots(message.data || []);
           } else {
@@ -99,43 +68,21 @@ const HistoryPanel = ({
           break;
 
         case "snapshotRestored":
-          console.log("[HistoryPanel] Snapshot restored:", message.snapshotId);
-          console.log(
-            "[HistoryPanel] Snapshot data received:",
-            JSON.stringify(message.data, null, 2),
-          );
           // Load the restored payload into the Playground
           // Try multiple sources: predictedPayload > lastPayload > lastRequest.body
           let payloadToLoad = null;
           if (message.data) {
             if (message.data.predictedPayload) {
               payloadToLoad = message.data.predictedPayload;
-              console.log(
-                "[HistoryPanel] Using predictedPayload:",
-                payloadToLoad,
-              );
             } else if (message.data.lastPayload) {
               payloadToLoad = message.data.lastPayload;
-              console.log("[HistoryPanel] Using lastPayload:", payloadToLoad);
             } else if (message.data.lastRequest?.body) {
               payloadToLoad = message.data.lastRequest.body;
-              console.log(
-                "[HistoryPanel] Using lastRequest.body:",
-                payloadToLoad,
-              );
             } else if (message.data.lastResponse?.body) {
               payloadToLoad = message.data.lastResponse.body;
-              console.log(
-                "[HistoryPanel] Using lastResponse.body:",
-                payloadToLoad,
-              );
             }
 
             if (payloadToLoad) {
-              console.log(
-                "[HistoryPanel] Dispatching loadPayload event with:",
-                payloadToLoad,
-              );
               window.dispatchEvent(
                 new CustomEvent("loadPayload", {
                   detail: { payload: payloadToLoad },
@@ -169,7 +116,6 @@ const HistoryPanel = ({
     };
 
     window.addEventListener("message", handleMessage);
-    console.log("[HistoryPanel] Message listener registered");
     return () => window.removeEventListener("message", handleMessage);
   }, []);
 

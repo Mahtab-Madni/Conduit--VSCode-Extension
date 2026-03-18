@@ -72,7 +72,6 @@ export class PayloadPredictor {
           );
           if (portMatch) {
             const port = portMatch[1];
-            console.log(`Detected port ${port} from package.json scripts`);
             return `http://localhost:${port}`;
           }
         }
@@ -111,9 +110,6 @@ export class PayloadPredictor {
         // If "main" field exists, use it as the primary server file
         if (packageJson.main) {
           serverFiles.push(packageJson.main);
-          console.log(
-            `Using main entry point from package.json: ${packageJson.main}`,
-          );
         }
       }
     } catch (error) {
@@ -146,7 +142,6 @@ export class PayloadPredictor {
           );
           if (portMatch) {
             const port = portMatch[1];
-            console.log(`Detected port ${port} from ${file}`);
             return `http://localhost:${port}`;
           }
         }
@@ -165,7 +160,6 @@ export class PayloadPredictor {
           const portMatch = content.match(/PORT[=\s]*(\d{4,5})/i);
           if (portMatch) {
             const port = portMatch[1];
-            console.log(`Detected port ${port} from ${envFile}`);
             return `http://localhost:${port}`;
           }
         }
@@ -182,7 +176,6 @@ export class PayloadPredictor {
       );
       if (portMatch) {
         const port = portMatch[1];
-        console.log(`Detected port ${port} from route file`);
         return `http://localhost:${port}`;
       }
     } catch (error) {
@@ -190,7 +183,6 @@ export class PayloadPredictor {
     }
 
     // Default fallback
-    console.log("No specific port detected, using default 3000");
     return "http://localhost:3000";
   }
 
@@ -205,9 +197,6 @@ export class PayloadPredictor {
     route: DetectedRoute,
   ): Promise<ControllerContext | null> {
     // Try to find controller function in the same file as the route (original approach)
-    console.log(
-      `Attempting to find controller "${route.handler}" in same file: ${route.filePath}`,
-    );
     const sameFileContext = await this.tryExtractFromSameFile(route);
     if (sameFileContext) {
       console.log(`Found controller "${route.handler}" in same file`);
@@ -216,9 +205,6 @@ export class PayloadPredictor {
 
     // Try to find controller function in separate controller file
     if (route.controllerFilePath && route.controllerFunction) {
-      console.log(
-        `Attempting to find controller "${route.controllerFunction}" in separate file: ${route.controllerFilePath}`,
-      );
       const separateFileContext = await this.tryExtractFromSeparateFile(route);
       if (separateFileContext) {
         console.log(
@@ -226,12 +212,8 @@ export class PayloadPredictor {
         );
         return separateFileContext;
       }
-    } else {
-      console.log(
-        `⚠️ No separate controller file detected for route "${route.handler}"`,
-      );
     }
-
+    
     // If both failed, return null (will trigger error handling in predict())
     console.warn(
       `Could not find controller function "${route.handler}" in route file or separate controller file`,

@@ -49,14 +49,11 @@ export class RouteDetector {
     const files = await this.findRouteFiles();
 
     // First pass: detect router exports from all files
-    console.log("[RouteDetector] Pass 1: Detecting router exports...");
     for (const file of files) {
       await this.detectRouterExports(file);
     }
 
     // Second pass: detect app.use() calls in main files and extract prefixes
-    // This MUST happen before parsing routes so prefixes are available
-    console.log("[RouteDetector] Pass 2: Detecting app prefixes...");
     for (const file of files) {
       if (
         file.endsWith("index.js") ||
@@ -68,25 +65,16 @@ export class RouteDetector {
     }
 
     // Third pass: detect route definitions (now with prefixes available)
-    console.log("[RouteDetector] Pass 3: Parsing route definitions...");
     for (const file of files) {
       await this.parseFileForRoutes(file);
     }
 
-    // Log the detected mappings
-    console.log("\n[RouteDetector] Route Detection Summary:");
-    console.log("[RouteDetector] ─────────────────────────");
-    console.log("[RouteDetector] Router Exports:");
     this.routerExports.forEach((filePath, routerName) => {
       console.log(`  ${routerName} -> ${filePath}`);
     });
-    console.log("[RouteDetector] File Prefixes:");
     this.filePrefixes.forEach((prefix, filePath) => {
       console.log(`  ${filePath} -> ${prefix}`);
     });
-    console.log(`[RouteDetector] Total Routes Found: ${this.routes.length}`);
-    console.log("[RouteDetector] ─────────────────────────\n");
-
     return this.routes;
   }
 
@@ -145,9 +133,6 @@ export class RouteDetector {
               routerName.toLowerCase().includes("router") ||
               routerName.toLowerCase().includes("route")
             ) {
-              console.log(
-                `[RouteDetector] Found export default ${routerName} in ${filePath}`,
-              );
               this.routerExports.set(routerName, filePath);
             }
           }
@@ -163,9 +148,6 @@ export class RouteDetector {
               routerName.toLowerCase().includes("router") ||
               routerName.toLowerCase().includes("route")
             ) {
-              console.log(
-                `[RouteDetector] Found module.exports = ${routerName} in ${filePath}`,
-              );
               this.routerExports.set(routerName, filePath);
             }
           }
@@ -178,9 +160,6 @@ export class RouteDetector {
               varName.toLowerCase().includes("route")
             ) {
               if (!this.routerExports.has(varName)) {
-                console.log(
-                  `[RouteDetector] Found router variable ${varName} in ${filePath}`,
-                );
                 this.routerExports.set(varName, filePath);
               }
             }
@@ -277,9 +256,6 @@ export class RouteDetector {
               }
 
               if (routerFilePath) {
-                console.log(
-                  `[RouteDetector] Found app.use("${prefix}", ${routerVarName}) -> ${routerFilePath}`,
-                );
                 this.filePrefixes.set(routerFilePath, prefix);
               }
             }
@@ -583,10 +559,6 @@ export class RouteDetector {
         ? this.routerPrefixes.get(node.callee.object.name)
         : undefined) ||
       "";
-
-    console.log(
-      `[RouteDetector] Route: ${method.toUpperCase()} ${fullPath} (prefix: "${mountPrefix}") from ${filePath}:${node.loc?.start.line}`,
-    );
 
     this.routes.push({
       id: `${method.toUpperCase()}-${fullPath}-${handler}-${filePath}-${node.loc?.start.line || 0}`.replace(

@@ -88,27 +88,19 @@ export class ConduitApiService {
 
   private async loadToken(): Promise<void> {
     try {
-      console.log("[Conduit] Loading token from secrets...");
       this.token =
         (await this.context.secrets.get("conduit.auth.token")) || null;
       this.tokenLoaded = true;
-      console.log(
-        "[Conduit] Token loaded:",
-        this.token ? "Present" : "Missing",
-      );
     } catch (error) {
-      console.error("Failed to load auth token:", error);
       this.tokenLoaded = true; // Mark as loaded even if failed
     }
   }
 
   private async saveToken(token: string): Promise<void> {
     try {
-      console.log("[Conduit] Saving token to secrets...");
       await this.context.secrets.store("conduit.auth.token", token);
       this.token = token;
       this.tokenLoaded = true;
-      console.log("[Conduit] Token saved successfully");
     } catch (error) {
       console.error("Failed to save auth token:", error);
       throw error; // Re-throw to handle in authenticate method
@@ -149,20 +141,8 @@ export class ConduitApiService {
       },
     };
 
-    console.log("[Conduit] Making API request:", {
-      url,
-      method: config.method || "GET",
-      hasAuth: !!this.token,
-    });
-
     try {
       const response = await fetch(url, config);
-
-      console.log("[Conduit] API response:", {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok,
-      });
 
       if (!response.ok) {
         if (response.status === 401) {
@@ -189,7 +169,6 @@ export class ConduitApiService {
       }
 
       const result = (await response.json()) as T;
-      console.log("[Conduit] API request successful");
       return result;
     } catch (error) {
       console.error(`[Conduit] API request failed: ${endpoint}`, error);
@@ -211,16 +190,8 @@ export class ConduitApiService {
   public async isAuthenticated(): Promise<boolean> {
     // Ensure token is loaded before checking authentication
     if (!this.tokenLoaded) {
-      console.log("[Conduit] Token not loaded yet, loading now...");
       await this.loadToken();
     }
-
-    console.log(
-      "[Conduit] Checking authentication status, token:",
-      this.token ? "Present" : "Missing",
-      "tokenLoaded:",
-      this.tokenLoaded,
-    );
     return !!this.token;
   }
 
@@ -231,33 +202,19 @@ export class ConduitApiService {
 
   // Force reload token for debugging
   public async reloadToken(): Promise<void> {
-    console.log("[Conduit] Force reloading token...");
     this.tokenLoaded = false;
     await this.loadToken();
   }
 
   public async authenticate(token: string): Promise<void> {
-    console.log("[Conduit] Starting authentication with token...");
 
     if (!token) {
       throw new Error("Token is required for authentication");
     }
 
-    console.log("[Conduit] Token length:", token.length);
-    console.log("[Conduit] Token preview:", token.substring(0, 10) + "...");
-
     try {
       await this.saveToken(token);
       const user = await this.getCurrentUser();
-      console.log(
-        "[Conduit] Token verified successfully for user:",
-        user.username || user.displayName,
-      );
-      console.log("[Conduit] User details:", {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-      });
     } catch (error: any) {
       console.error("[Conduit] Authentication failed:", error);
       console.error("[Conduit] Error type:", typeof error);
@@ -266,7 +223,6 @@ export class ConduitApiService {
 
       // Clear the token if verification failed
       await this.clearToken();
-      console.log("[Conduit] Token cleared due to verification failure");
 
       throw new Error(
         `Authentication failed: ${error?.message || "Unknown error"}`,
@@ -282,13 +238,11 @@ export class ConduitApiService {
     // Use a callback URL that will work better with browsers
     const callbackUrl = encodeURIComponent(`${this.baseUrl}/auth/success`);
     const authUrl = `${this.baseUrl}/auth/github?callback=${callbackUrl}`;
-    console.log("[Conduit] Generated auth URL:", authUrl);
     return authUrl;
   }
 
   public async authenticateWithVscode(): Promise<void> {
     try {
-      console.log("[Conduit] Starting VS Code authentication flow...");
 
       // Use VS Code's built-in authentication system as fallback
       const session = await vscode.authentication.getSession(
@@ -298,7 +252,6 @@ export class ConduitApiService {
       );
 
       if (session?.accessToken) {
-        console.log("[Conduit] Got GitHub session from VS Code");
 
         // Exchange the GitHub token for our backend token
         const response = await fetch(`${this.baseUrl}/auth/vscode`, {

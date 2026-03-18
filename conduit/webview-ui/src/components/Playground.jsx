@@ -251,20 +251,14 @@ const Playground = ({ route, onSendRequest }) => {
   // Listen for loadPayload event from snapshot restore
   useEffect(() => {
     const handleLoadPayload = (event) => {
-      console.log(
-        "[Playground] Loading payload from snapshot:",
-        event.detail.payload,
-      );
       if (event.detail.payload) {
         setPayload(JSON.stringify(event.detail.payload, null, 2));
         setFormPayload(event.detail.payload);
       }
     };
 
-    console.log("[Playground] Registering loadPayload listener");
     window.addEventListener("loadPayload", handleLoadPayload);
     return () => {
-      console.log("[Playground] Removing loadPayload listener");
       window.removeEventListener("loadPayload", handleLoadPayload);
     };
   }, []);

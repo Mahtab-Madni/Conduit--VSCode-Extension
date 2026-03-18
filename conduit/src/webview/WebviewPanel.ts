@@ -143,7 +143,6 @@ export class ConduitPanel {
             this.sendAuthStatus();
             return;
           case "login":
-            console.log("[Conduit] WebView login message received");
             vscode.commands.executeCommand("conduit.login");
             return;
           case "logout":
@@ -165,10 +164,6 @@ export class ConduitPanel {
                 message.route.method,
                 message.route.path,
                 message.route.filePath,
-              );
-              console.log(
-                "[WebviewPanel] Calculated routeId from route:",
-                routeId,
               );
               this.getRouteHistory(routeId, message.limit);
             } else {
@@ -342,7 +337,7 @@ export class ConduitPanel {
       });
 
       vscode.window.showErrorMessage(
-        `❌ Request failed: ${error instanceof Error ? error.message : String(error)}`,
+        `Request failed: Please ensure your base URL is correct and the server is running.`,
       );
     }
   }
@@ -399,11 +394,6 @@ export class ConduitPanel {
           // Add predicted base URL
           baseUrl: predictedBaseUrl,
         };
-
-        console.log(
-          "Final prediction object:",
-          JSON.stringify(convertedPrediction, null, 2),
-        );
 
         // Send prediction back to webview (using original format for compatibility)
         this._panel.webview.postMessage({
@@ -886,18 +876,12 @@ export class ConduitPanel {
 
       // Try to extract controller function from same file first
       if (fileContent && route.handler) {
-        console.log(
-          `[WebviewPanel] Attempting to extract controller "${route.handler}" from route file`,
-        );
         extractedFunctionCode = this.extractControllerFunctionCode(
           fileContent,
           route.handler,
           route.filePath,
         );
         if (extractedFunctionCode) {
-          console.log(
-            `[WebviewPanel] Successfully extracted controller function from route file`,
-          );
           fileContent = extractedFunctionCode;
         }
       }
@@ -908,9 +892,6 @@ export class ConduitPanel {
         route.controllerFilePath &&
         route.controllerFunction
       ) {
-        console.log(
-          `[WebviewPanel] Attempting to extract controller "${route.controllerFunction}" from separate file: ${route.controllerFilePath}`,
-        );
         try {
           const fileUri = vscode.Uri.file(route.controllerFilePath);
           const fileBytes = await vscode.workspace.fs.readFile(fileUri);
@@ -937,13 +918,6 @@ export class ConduitPanel {
         }
       }
 
-      console.log("[WebviewPanel] Saving checkpoint:", {
-        routePath: route.path,
-        method: route.method,
-        label: label.trim(),
-        filePath: codeFilePath,
-      });
-
       const checkpointData = {
         routeId,
         routePath: route.path,
@@ -969,10 +943,8 @@ export class ConduitPanel {
 
       const result = await this._apiService.saveCheckpoint(checkpointData);
 
-      console.log("[WebviewPanel] Checkpoint saved:", result);
-
       vscode.window.showInformationMessage(
-        `✅ Checkpoint saved: ${label.trim()}\n${route.method} ${route.path}`,
+        `Checkpoint saved: ${label.trim()}\n${route.method} ${route.path}`,
       );
 
       this._panel.webview.postMessage({
@@ -995,10 +967,6 @@ export class ConduitPanel {
     }
   }
 
-  /**
-   * Extract a specific controller function code from file content using AST parsing
-   * Same logic as PayloadPredictor and SnapshotService
-   */
   private extractControllerFunctionCode(
     fileContent: string,
     targetFunction: string,
@@ -1078,19 +1046,12 @@ export class ConduitPanel {
       });
 
       if (!controllerFunction || startLine === 0 || endLine === 0) {
-        console.log(
-          `[WebviewPanel] Could not find function "${targetFunction}" in ${filePath}`,
-        );
         return null;
       }
 
       // Extract the controller code
       const lines = fileContent.split("\n");
       const controllerCode = lines.slice(startLine - 1, endLine).join("\n");
-
-      console.log(
-        `[WebviewPanel] Extracted function "${targetFunction}" (lines ${startLine}-${endLine})`,
-      );
 
       return controllerCode;
     } catch (error) {
@@ -1231,7 +1192,6 @@ export class ConduitPanel {
       });
 
       vscode.window.showInformationMessage("Snapshot deleted successfully");
-      console.log("[WebviewPanel] Snapshot deleted:", snapshotId);
     } catch (error) {
       console.error("Error deleting snapshot:", error);
       vscode.window.showErrorMessage(
