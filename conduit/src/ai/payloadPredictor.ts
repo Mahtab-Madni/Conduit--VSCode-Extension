@@ -368,6 +368,41 @@ export class PayloadPredictor {
           endLine = path.node.loc?.end.line || 0;
         }
       },
+      // Handle ES6 named exports: export const login = () => {}  OR  export function login() {}
+      ExportNamedDeclaration: (path: any) => {
+        if (path.node.declaration) {
+          if (
+            path.node.declaration.type === "FunctionDeclaration" &&
+            path.node.declaration.id?.name === targetFunction
+          ) {
+            controllerFunction = path.node.declaration;
+            functionName = path.node.declaration.id.name;
+            startLine = path.node.loc?.start.line || 0;
+            endLine = path.node.loc?.end.line || 0;
+          } else if (
+            path.node.declaration.type === "VariableDeclaration" &&
+            path.node.declaration.declarations[0]?.id?.name === targetFunction
+          ) {
+            controllerFunction =
+              path.node.declaration.declarations[0]?.init || null;
+            functionName = path.node.declaration.declarations[0]?.id?.name;
+            startLine = path.node.loc?.start.line || 0;
+            endLine = path.node.loc?.end.line || 0;
+          }
+        }
+      },
+      // Handle ES6 default exports: export default login
+      ExportDefaultDeclaration: (path: any) => {
+        if (
+          path.node.declaration.type === "FunctionExpression" ||
+          path.node.declaration.type === "ArrowFunctionExpression"
+        ) {
+          controllerFunction = path.node.declaration;
+          functionName = path.node.declaration.id?.name || "default_export";
+          startLine = path.node.loc?.start.line || 0;
+          endLine = path.node.loc?.end.line || 0;
+        }
+      },
     });
 
     if (!controllerFunction) {

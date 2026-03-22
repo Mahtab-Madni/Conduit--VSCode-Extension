@@ -4,10 +4,7 @@ import * as path from "path";
 import { createHash } from "crypto";
 import { parse } from "@babel/parser";
 import traverse, { NodePath } from "@babel/traverse";
-import {
-  Node,
-  FunctionDeclaration,
-} from "@babel/types";
+import { Node, FunctionDeclaration } from "@babel/types";
 import { RouteDetector, DetectedRoute } from "../detection/routeDetection";
 import { PayloadPredictor } from "../ai/payloadPredictor";
 import { ConduitApiService } from "./apiService";
@@ -163,6 +160,59 @@ export class SnapshotService {
             endLine = path.node.loc?.end.line || 0;
           }
         },
+        ExportNamedDeclaration: (path: any) => {
+          // Handle: export const login = () => {}  OR  export function login() {}
+          if (path.node.declaration) {
+            if (
+              path.node.declaration.type === "FunctionDeclaration" &&
+              path.node.declaration.id?.name === targetFunction
+            ) {
+              controllerFunction = path.node.declaration;
+              startLine = path.node.loc?.start.line || 0;
+              endLine = path.node.loc?.end.line || 0;
+            } else if (
+              path.node.declaration.type === "VariableDeclaration" &&
+              path.node.declaration.declarations[0]?.id?.name === targetFunction
+            ) {
+              controllerFunction =
+                path.node.declaration.declarations[0]?.init || null;
+              startLine = path.node.loc?.start.line || 0;
+              endLine = path.node.loc?.end.line || 0;
+            }
+          }
+          // Handle: export { login }
+          if (path.node.specifiers) {
+            path.node.specifiers.forEach((spec: any) => {
+              if (
+                spec.type === "ExportSpecifier" &&
+                spec.exported.name === targetFunction
+              ) {
+                // Mark for later lookup
+                controllerFunction = { _exportSpecifier: true } as any;
+                startLine = path.node.loc?.start.line || 0;
+                endLine = path.node.loc?.end.line || 0;
+              }
+            });
+          }
+        },
+        ExportDefaultDeclaration: (path: any) => {
+          // Handle: export default login  OR  export default { login }
+          if (
+            path.node.declaration.type === "Identifier" &&
+            path.node.declaration.name === targetFunction
+          ) {
+            controllerFunction = { _exportDefault: true } as any;
+            startLine = path.node.loc?.start.line || 0;
+            endLine = path.node.loc?.end.line || 0;
+          } else if (
+            path.node.declaration.type === "FunctionExpression" ||
+            path.node.declaration.type === "ArrowFunctionExpression"
+          ) {
+            controllerFunction = path.node.declaration;
+            startLine = path.node.loc?.start.line || 0;
+            endLine = path.node.loc?.end.line || 0;
+          }
+        },
       });
 
       if (!controllerFunction || startLine === 0 || endLine === 0) {
@@ -301,10 +351,7 @@ export class SnapshotService {
       if (extractedFunctionCode) {
         codeToCheckpoint = extractedFunctionCode;
       } else {
-        if (
-          route.controllerFilePath &&
-          route.controllerFunction
-        ) {
+        if (route.controllerFilePath && route.controllerFunction) {
           try {
             const controllerFileContent = fs.readFileSync(
               route.controllerFilePath,
