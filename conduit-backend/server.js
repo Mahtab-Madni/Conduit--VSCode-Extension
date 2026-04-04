@@ -11,6 +11,7 @@ import {
   aiRouter,
   collectionRouter,
   snapshotRouter,
+  marketplaceRouter,
 } from "./routes/index.js";
 
 dotenv.config();
@@ -53,6 +54,18 @@ app.use(
   }),
 );
 
+// Middleware to capture raw body for webhook signature verification
+app.use((req, res, next) => {
+  let rawBody = "";
+  req.on("data", (chunk) => {
+    rawBody += chunk.toString("utf8");
+  });
+  req.on("end", () => {
+    req.rawBody = rawBody;
+    next();
+  });
+});
+
 // Body parsing
 app.use(json({ limit: "10mb" }));
 app.use(urlencoded({ extended: true }));
@@ -68,6 +81,7 @@ app.use("/api/user", userRouter);
 app.use("/api/ai", aiRouter);
 app.use("/api/collections", collectionRouter);
 app.use("/api/snapshots", snapshotRouter);
+app.use("/api/marketplace", marketplaceRouter);
 
 // Error handling middleware (must be last)
 app.use(errorHandler);
