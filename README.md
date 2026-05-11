@@ -7,48 +7,49 @@
 
 > **Stop switching between VS Code and Postman. Automatically detect, analyze, and test API routes directly from your source code. Zero-configuration AI-powered payload generation with instant Postman/OpenAPI exports.**
 
----
+## Overview
 
-## 📋 Table of Contents
+Conduit is a powerful VS Code extension that transforms your Express.js API development workflow. It automatically detects all your routes, generates intelligent test payloads using AI, provides an interactive testing playground, and exports to industry-standard formats—all without leaving your editor.
 
-- [What is Conduit?](#what-is-conduit)
-- [Key Features](#key-features)
-- [Project Structure](#project-structure)
-- [Prerequisites](#prerequisites)
-- [Quick Start](#quick-start)
-- [Development Workflow](#development-workflow)
-- [How to Use](#how-to-use)
-- [Technology Stack](#technology-stack)
-- [Architecture](#architecture)
-- [Troubleshooting](#troubleshooting)
-- [Contributing](#contributing)
-- [License](#license)
+**Key Value Propositions:**
 
----
+- **Zero Context-Switching** - Test APIs directly in VS Code
+- **AI-Powered** - Backend-powered AI with no API key configuration
+- **Zero Configuration** - Works out of the box with smart defaults
+- **One-Click Export** - Postman, OpenAPI, cURL in seconds
+- **Version Tracking** - Automatic route history with comparisons
+- **MongoDB Integration** - Real data from your database
 
-## ✨ What is Conduit?
+## Quick Start
 
-Conduit is a powerful VS Code extension that transforms your Express.js API development workflow. It:
+### For Users
 
-- **Automatically detects** all your API routes using AST parsing
-- **Generates intelligent payloads** using OpenAI GPT-4 based on your code
-- **Provides an interactive testing playground** built directly into VS Code
-- **Exports to Postman, OpenAPI, and cURL** with a single click
-- **Tracks route history** and compares versions side-by-side
-- **Integrates MongoDB data** to populate realistic test values
+1. **Install from VS Code Marketplace**
+   - Open VS Code Extensions (`Ctrl+Shift+X`)
+   - Search for "Conduit"
+   - Click Install
 
-### In 30 Seconds:
+2. **Open an Express.js Project**
+   - Open your project folder in VS Code
+   - Conduit automatically scans for routes
 
-1. **Open your Express project** → Conduit auto-scans all routes
-2. **Click a route** → AI generates a pre-filled test payload
-3. **Send the request** → See the response instantly
-4. **Export anywhere** → Postman Collection, OpenAPI spec, or cURL command
+3. **Start Testing**
+   - Click the Conduit icon in the sidebar
+   - Select a route
+   - Review AI-generated payload
+   - Click "Send" to test
 
----
+4. **Export**
+   - Choose format: Postman, OpenAPI, or cURL
+   - Share with your team
 
-## 🎯 Key Features
+### For Developers
 
-### 🔍 **Intelligent Route Detection**
+See [Development Setup](#development-setup) section below.
+
+## Features
+
+### 🔍 Intelligent Route Detection
 
 - Automatically discovers all Express.js routes using AST parsing
 - Extracts HTTP methods, paths, handlers, and middleware chains
@@ -56,15 +57,16 @@ Conduit is a powerful VS Code extension that transforms your Express.js API deve
 - Works with both JavaScript and TypeScript
 - Real-time updates on file changes
 
-### 🤖 **AI-Powered Payload Generation**
+### 🤖 AI-Powered Payload Generation
 
 - Analyzes route handlers and generates realistic test payloads
 - Hybrid intelligence: combines source code analysis with MongoDB schemas
 - Learns from your data models and validation rules
 - Auto-injects authentication headers based on detected middleware
 - Suggests fixes for errors (4xx/5xx responses)
+- **No API keys required** - AI runs on our backend
 
-### 🧪 **Interactive API Testing**
+### 🧪 Interactive API Testing
 
 - Built-in HTTP client for testing endpoints
 - Real-time request/response visualization
@@ -72,21 +74,21 @@ Conduit is a powerful VS Code extension that transforms your Express.js API deve
 - Bearer token authentication support
 - Debug errors with AI-powered suggestions
 
-### 📤 **Professional Export Formats**
+### 📤 Professional Export Formats
 
 - **Postman v2.1**: Complete collection files with authentication setup
 - **OpenAPI 3.0**: Standardized API documentation with schemas
 - **cURL Commands**: Copy-paste ready terminal commands
 - All exports include AI-predicted payloads and proper authentication
 
-### ⏳ **Route History & Snapshots**
+### ⏳ Route History & Snapshots
 
 - Automatic snapshots capture route changes on every file modification
 - Compare route versions side-by-side
 - Time-travel through your API evolution
 - Restore any previous payload with one click
 
-### 🍃 **MongoDB Integration**
+### 🍃 MongoDB Integration
 
 - Connects to your local MongoDB and pulls actual documents
 - Infers collections from route paths (`/api/orders` → `orders` collection)
@@ -94,7 +96,7 @@ Conduit is a powerful VS Code extension that transforms your Express.js API deve
 - Schema viewer for any collection (field names, types, frequency)
 - Works offline with smart field-name defaults if MongoDB unavailable
 
-### 🎨 **Full VS Code Integration**
+### 🎨 Full VS Code Integration
 
 - Respects VS Code theme (Dark, Light, High Contrast)
 - Sidebar route list with search and filtering
@@ -102,21 +104,30 @@ Conduit is a powerful VS Code extension that transforms your Express.js API deve
 - Error handling with detailed messages
 - Works with monorepos and complex project structures
 
----
+## Prerequisites
 
-## 📁 Project Structure
+### Required
+
+- **VS Code** v1.109.0 or higher
+- **Node.js** v20.0.0 or higher
+- **npm** v10.0.0 or higher
+- **Express.js Project** - Any Node.js project using Express.js
+
+### Optional (for enhanced features)
+
+- **MongoDB** v6.0+ (local or MongoDB Atlas) - For realistic test data from your database
+
+## Project Structure
 
 ```
 Conduit/
-├── conduit/                          ✨ VS Code Extension
+├── conduit/                          # VS Code Extension
 │   ├── src/
 │   │   ├── extension.ts              # Extension entry point
 │   │   ├── detection/
 │   │   │   └── routeDetection.ts     # AST-based route parser
-│   │   ├── backend/
-│   │   │   └── syncClient.ts         # Backend API client
 │   │   ├── ai/
-│   │   │   └── payloadPredictor.ts   # GPT-4o payload generation
+│   │   │   └── payloadPredictor.ts   # AI payload generation
 │   │   ├── db/
 │   │   │   ├── mongoConnector.ts     # MongoDB connection
 │   │   │   ├── collectionInferencer.ts
@@ -125,9 +136,9 @@ Conduit/
 │   │   │   ├── sampleDataFetcher.ts
 │   │   │   └── schemaViewer.ts
 │   │   ├── exporters/
-│   │   │   ├── postmanExporter.ts    # Postman export logic
-│   │   │   ├── openApiExporter.ts    # OpenAPI/Swagger export
-│   │   │   ├── curlGenerator.ts      # cURL command generation
+│   │   │   ├── postmanExporter.ts    # Postman export
+│   │   │   ├── openApiExporter.ts    # OpenAPI export
+│   │   │   ├── curlGenerator.ts      # cURL generation
 │   │   │   └── index.ts
 │   │   ├── services/
 │   │   │   ├── apiService.ts         # API communication
@@ -136,32 +147,33 @@ Conduit/
 │   │   │   └── WebviewPanel.ts       # Webview controller
 │   │   └── test/
 │   │       └── extension.test.ts
-│   ├── webview-ui/                   📱 React Frontend
+│   ├── webview-ui/                   # React Frontend
 │   │   ├── src/
-│   │   │   ├── main.jsx              # React entry
-│   │   │   ├── App.jsx               # Main component
+│   │   │   ├── main.jsx
+│   │   │   ├── App.jsx
 │   │   │   ├── components/
-│   │   │   │   ├── RouteList.jsx     # Route sidebar
-│   │   │   │   ├── Playground.jsx    # API tester
-│   │   │   │   ├── PayloadForm.jsx   # JSON editor
-│   │   │   │   ├── ResponseView.jsx  # Response display
-│   │   │   │   ├── HistoryPanel.jsx  # History timeline
-│   │   │   │   ├── JsonEditor.jsx    # Advanced JSON editor
-│   │   │   │   ├── DiffView.jsx      # Diff comparison
+│   │   │   │   ├── RouteList.jsx
+│   │   │   │   ├── Playground.jsx
+│   │   │   │   ├── PayloadForm.jsx
+│   │   │   │   ├── ResponseView.jsx
+│   │   │   │   ├── HistoryPanel.jsx
+│   │   │   │   ├── JsonEditor.jsx
+│   │   │   │   ├── DiffView.jsx
 │   │   │   │   └── AiResponseFormatter.jsx
-│   │   │   ├── styles/               # CSS and theme
+│   │   │   ├── theme.css
 │   │   │   └── assets/
 │   │   ├── package.json
 │   │   └── vite.config.js
 │   ├── webview-dist/                 # Built frontend
 │   ├── package.json
 │   ├── tsconfig.json
-│   └── esbuild.js
+│   ├── esbuild.js
+│   ├── eslint.config.mjs
+│   ├── CHANGELOG.md
+│   └── README.md                     # Extension marketplace README
 │
-├── conduit-backend/                  🔧 Express.js Backend
+├── conduit-backend/                  # Express.js Backend
 │   ├── server.js                     # Entry point
-│   ├── config/
-│   │   └── db.js                     # Database configuration
 │   ├── controllers/
 │   │   ├── AiController.js           # AI endpoints
 │   │   ├── AuthController.js         # Authentication
@@ -185,34 +197,74 @@ Conduit/
 │   │   └── passport.js
 │   ├── utils/
 │   │   └── labelGenerator.js
+│   ├── config/
+│   │   └── db.js
 │   ├── package.json
 │   └── .env.example
 │
-└── README.md                   # This file (Main documentation)
+├── README.md                         # This file
+├── PRIVACY.md
+├── TERMS.md
+└── LICENSE
+
 ```
 
----
+## How to Use
 
-## 📦 Prerequisites
+### 1. Detect Routes
 
-Before you begin, ensure you have the following installed:
+1. Open an Express.js project in VS Code
+2. Click the Conduit icon in the Activity Bar (left sidebar)
+3. Routes are automatically detected—if not, click "Refresh Routes"
 
-- **VS Code** v1.109.0 or higher
-- **Node.js** v20.0.0 or higher
-- **npm** v10.0.0 or higher
-- **MongoDB** v6.0+ (local or MongoDB Atlas)
+### 2. Generate AI Payloads
 
----
+1. Select a route from the list
+2. Click "Generate Payload with AI"
+3. Conduit analyzes your controller code and generates a realistic payload
+4. Edit the payload as needed
 
-## 🚀 Quick Start
+### 3. Test Endpoints
 
-### Step 1: Clone and Navigate
+1. Click on a route to open the playground
+2. Review the generated payload
+3. Set authentication token if needed
+4. Click "Send Request"
+5. View the response (status, headers, body)
+
+### 4. Export for External Tools
+
+1. **Postman**: Click "📤 Export to Postman"
+2. **OpenAPI**: Click "📋 Export as OpenAPI"
+3. **cURL**: Click "📋 Copy as cURL"
+4. Paste or import into your preferred tool
+
+### 5. Track Route Changes
+
+1. Click "History" tab in the panel
+2. Scroll through the timeline of changes
+3. Compare versions side-by-side
+4. Click to restore any previous payload
+
+## Development Setup
+
+### Prerequisites for Development
+
+- VS Code 1.109.0+
+- Node.js 20.0.0+
+- npm 10.0.0+
+- MongoDB (optional, for testing)
+
+### Installation
+
+1. **Clone the repository**
 
 ```bash
-cd C:\Users\mahta\Desktop\Conduit
+git clone https://github.com/MahtabMadni/Conduit--VSCode-Extension
+cd Conduit
 ```
 
-### Step 2: Install Dependencies
+2. **Install dependencies**
 
 ```bash
 # Install extension dependencies
@@ -227,71 +279,77 @@ npm install
 cd ../..
 cd conduit-backend
 npm install
-cd ..
 ```
 
-### Step 3: Configure Environment Variables
+3. **Configure environment variables**
 
-Create `.env` files for the backend:
-
-**conduit-backend/.env**
+Create `.env` file in `conduit-backend/`:
 
 ```env
+# MongoDB Connection
 MONGODB_URI=mongodb://localhost:27017/conduit
-OPENAI_API_KEY=your_openai_api_key_here
+# Alternative: MongoDB Atlas
+# MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/conduit
+
+# JWT Configuration
 JWT_SECRET=your_jwt_secret_key
+
+# Application Settings
 NODE_ENV=development
 PORT=3002
-GROQ_API_KEY=optional_groq_api_key
 ```
 
-> **MongoDB Options:**
->
-> - **Local**: `mongodb://localhost:27017/conduit`
-> - **MongoDB Atlas**: `mongodb+srv://username:password@cluster.mongodb.net/conduit`
-
-### Step 4: Start MongoDB
+4. **Start MongoDB**
 
 ```bash
 # If using local MongoDB
 mongod
 
-# If using MongoDB Atlas, update MONGODB_URI in .env with your connection string
+# If using MongoDB Atlas, update MONGODB_URI in .env
 ```
 
-### Step 5: Build and Run
+### Build & Run
+
+**Terminal 1: Backend**
 
 ```bash
-# Terminal 1: Build backend
 cd conduit-backend
 npm run dev
-
-# Terminal 2: Build webview UI
-cd conduit/webview-ui
-npm run build
-
-# Terminal 3: Build extension and watch
-cd ../..
-cd conduit
-npm run esbuild
-
-# Terminal 4: Open VS Code and press F5 to launch extension in debug mode
 ```
 
----
+**Terminal 2: Webview UI**
 
-## 💻 Development Workflow
+```bash
+cd conduit/webview-ui
+npm run dev
+```
+
+**Terminal 3: Extension**
+
+```bash
+cd conduit
+npm run esbuild:watch
+```
+
+**Terminal 4: VS Code Debug**
+
+- Press F5 in the extension folder to launch debug mode
+
+## Development Commands
 
 ### Extension Development
 
 ```bash
 cd conduit
 
-# Watch mode (auto-rebuild on changes)
+# Watch mode (recommended)
 npm run esbuild:watch
 
-# Production build
+# One-time build
 npm run esbuild
+
+# Linting
+npm run lint
 
 # Run tests
 npm test
@@ -302,7 +360,7 @@ npm test
 ```bash
 cd conduit/webview-ui
 
-# Development server (hot reload)
+# Development server with hot reload
 npm run dev
 
 # Production build
@@ -319,115 +377,14 @@ npm run dev
 
 # Production mode
 npm start
-
-# Run tests
-npm test
 ```
 
-### Common Commands
-
-| Command                 | Location              | Purpose                        |
-| ----------------------- | --------------------- | ------------------------------ |
-| `npm run esbuild`       | `conduit/`            | Build extension for production |
-| `npm run esbuild:watch` | `conduit/`            | Watch and rebuild extension    |
-| `npm run dev`           | `conduit/webview-ui/` | Start React dev server         |
-| `npm run build`         | `conduit/webview-ui/` | Build production React bundle  |
-| `npm run dev`           | `conduit-backend/`    | Start backend with auto-reload |
-| `npm test`              | `conduit/`            | Run extension tests            |
-
----
-
-## 🎮 How to Use
-
-### 1. Detect Routes
-
-1. Open an Express.js project in VS Code
-2. Look for the Conduit icon in the Activity Bar (left sidebar)
-3. Click it to open the Conduit panel
-4. Routes are automatically detected—if not, click "Refresh Routes"
-
-### 2. Generate AI Payloads
-
-1. Select a route from the list
-2. Click "Generate Payload with AI"
-3. Conduit analyzes your controller code and generates a realistic payload
-4. Edit the payload as needed
-
-### 3. Test Endpoints
-
-1. Click on a route to open the playground
-2. Configure the request:
-   - Review the generated payload
-   - Add or modify headers
-   - Set authentication token if needed
-3. Click "Send Request"
-4. View the response (status, headers, body)
-
-### 4. Export for External Tools
-
-1. **Postman**: Click "📤 Export to Postman"
-2. **OpenAPI**: Click "📋 Export as OpenAPI"
-3. **cURL**: Click "📋 Copy as cURL"
-4. Paste or import into your preferred tool
-
-### 5. Track Route Changes
-
-1. Click "History" tab in the panel
-2. Scroll through the timeline of changes
-3. Compare versions side-by-side
-4. Click to restore any previous payload
-
----
-
-## 🏗️ Architecture
-
-### High-Level Flow
-
-```
-VS Code Project
-    ↓
-Route Detection (AST parsing)
-    ↓
-Route Display (Sidebar)
-    ↓
-User Selects Route
-    ↓
-Backend: AI Payload Generation
-    ↓
-MongoDB: Real Data Fetching
-    ↓
-Playground: Display + Test
-    ↓
-Export: Postman/OpenAPI/cURL
-```
-
-### Module Responsibilities
-
-| Module                    | Responsibility                           |
-| ------------------------- | ---------------------------------------- |
-| `routeDetection.ts`       | Parse Express routes from source files   |
-| `payloadPredictor.ts`     | Call GPT-4o to generate test payloads    |
-| `mongoConnector.ts`       | Connect to MongoDB and fetch collections |
-| `collectionInferencer.ts` | Infer MongoDB collection schemas         |
-| `postmanExporter.ts`      | Generate Postman collection JSON         |
-| `openApiExporter.ts`      | Generate OpenAPI specification           |
-| `curlGenerator.ts`        | Generate cURL commands                   |
-| `snapshotService.ts`      | Save and retrieve route history          |
-
-### Backend Integration
-
-- **Fixed Backend URL**: Uses `http://localhost:3002` via `syncClient.ts`
-- **No User Configuration**: Backend connection is pre-configured
-- **Simplified Deployment**: Removes configuration complexity from users
-
----
-
-## 🔧 Technology Stack
+## Technology Stack
 
 ### Frontend
 
 - **React** 18+ - UI framework
-- **Vite** - Lightning-fast build tool
+- **Vite** - Build tool
 - **TypeScript** - Type-safe JavaScript
 - **CSS3** - Responsive styling with theme variables
 
@@ -448,46 +405,12 @@ Export: Postman/OpenAPI/cURL
 - **esbuild** - Fast bundler
 - **ESLint** - Code quality
 
-### External APIs
+### External Services
 
-- **OpenAI GPT-4o** - Intelligent payload generation
+- **Backend AI** - Intelligent payload generation (included in backend)
 - **MongoDB Atlas** - Optional cloud database
-- **Groq API** - Alternative AI provider (optional)
 
----
-
-## 📊 Features by Status
-
-| Feature               | Status      | Details                  |
-| --------------------- | ----------- | ------------------------ |
-| Route Detection       | ✅ Complete | Full AST-based detection |
-| AI Payload Generation | ✅ Complete | GPT-4o powered           |
-| API Testing           | ✅ Complete | Built-in HTTP client     |
-| Postman Export        | ✅ Complete | v2.1 format              |
-| OpenAPI Export        | ✅ Complete | OpenAPI 3.0 spec         |
-| cURL Export           | ✅ Complete | Terminal ready           |
-| Route History         | ✅ Complete | Time-travel snapshots    |
-| MongoDB Integration   | ✅ Complete | Schema inference         |
-| Theme Support         | ✅ Complete | Dark/Light/HC            |
-| Route Search          | ✅ Complete | Real-time filtering      |
-| Error Debugging       | ✅ Complete | AI-powered suggestions   |
-| GitHub OAuth          | ✅ Complete | Team sync ready          |
-| Collection Sharing    | ✅ Complete | Team collaboration       |
-
----
-
-## 🔐 Security Considerations
-
-- **API Keys**: Store all secrets in `.env` files (never commit to git)
-- **Authentication**: JWT tokens for secure API communication
-- **Database**: Use MongoDB Atlas with IP whitelisting for production
-- **CORS**: Configured for development—update `server.js` for production domain
-- **Rate Limiting**: Backend includes rate limiting for API protection
-- **Environment**: `.env` files are git-ignored; use `.env.example` for templates
-
----
-
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### Routes Not Detected
 
@@ -498,18 +421,18 @@ Export: Postman/OpenAPI/cURL
 - Ensure your Express.js project follows standard patterns
 - Check that routes are defined in `.js` or `.ts` files
 - Try the "Conduit: Refresh Routes" command (`Ctrl+Shift+R`)
-- Check the Extension Output panel for errors
+- Check the Extension Output panel for errors (`View → Output → Conduit`)
 
-### AI Payload Generation Fails
+### AI Payload Generation Issues
 
 **Problem**: "AI payload generation failed" message.
 
 **Solutions**:
 
-- Verify your OpenAI API key is valid
-- Check API rate limits and account balance
-- Ensure `OPENAI_API_KEY` is set in `.env`
-- Try using Groq API as alternative (set `GROQ_API_KEY`)
+- Verify backend is running on `http://localhost:3002`
+- Check VS Code Output panel (Conduit) for error details
+- Ensure route handlers are properly structured
+- Check backend logs for API errors
 
 ### MongoDB Connection Issues
 
@@ -517,140 +440,112 @@ Export: Postman/OpenAPI/cURL
 
 **Solutions**:
 
-- Ensure MongoDB is running: `mongod`
-- Verify connection string in `.env`
-- For MongoDB Atlas: whitelist your IP address
-- Check network connectivity if using cloud MongoDB
+- Verify MongoDB is running locally: `mongod`
+- For MongoDB Atlas, ensure connection string is correct in `.env`
+- Whitelist your IP address in MongoDB Atlas security settings
+- Verify `MONGODB_URI` in `.env` is correct
+- Check firewall settings
 
-### Extension Won't Start
+### Backend Connection Error
 
-**Problem**: Extension fails to load or crashes.
-
-**Solutions**:
-
-- Ensure all dependencies are installed: `npm install` in `conduit/` and `conduit/webview-ui/`
-- Check Node.js version: `node --version` (must be v20+)
-- Reload VS Code: `Ctrl+Shift+P` → "Developer: Reload Window"
-- Check file permissions in the extension directory
-
-### Backend Port Already in Use
-
-**Problem**: "EADDRINUSE: address already in use :::3002"
+**Problem**: "Cannot connect to backend" in the webview.
 
 **Solutions**:
 
-- Change `PORT` in `.env` to another value (e.g., 3003)
-- Kill existing process: `lsof -i :3002` then `kill -9 <PID>`
-- On Windows: `netstat -ano | findstr :3002`
+- Ensure backend is running: `npm run dev` in `conduit-backend/`
+- Verify port 3002 is available (no other process using it)
+- Check `PORT` setting in `.env`
+- Verify backend logs for startup errors
 
----
+## Architecture
 
-## 📝 Configuration
-
-### Extension Settings (VS Code settings.json)
-
-```json
-{
-  "conduit.mongodbUri": "mongodb://localhost:27017/conduit",
-  "conduit.openaiApiKey": "sk-...",
-  "conduit.backendUrl": "http://localhost:3002",
-  "conduit.theme": "auto",
-  "conduit.autoScan": true,
-  "conduit.skipFolders": ["node_modules", "dist", ".next"]
-}
+```
+VS Code Extension
+    ↓
+Route Detection (AST parsing)
+    ↓
+Route Display (Sidebar)
+    ↓
+User Selects Route
+    ↓
+Backend: AI Payload Generation
+    ↓
+MongoDB: Real Data Fetching
+    ↓
+Playground: Display + Test
+    ↓
+Export: Postman/OpenAPI/cURL
 ```
 
-### Backend Environment Variables
+## Contributing
 
-| Variable         | Required | Default       | Purpose                      |
-| ---------------- | -------- | ------------- | ---------------------------- |
-| `MONGODB_URI`    | Yes      | -             | MongoDB connection string    |
-| `OPENAI_API_KEY` | No       | -             | OpenAI API key for payloads  |
-| `JWT_SECRET`     | Yes      | -             | Secret for JWT token signing |
-| `NODE_ENV`       | No       | `development` | Environment mode             |
-| `PORT`           | No       | `3002`        | Backend server port          |
-| `GROQ_API_KEY`   | No       | -             | Alternative AI provider      |
-
----
-
-## 🤝 Contributing
-
-We welcome contributions to improve Conduit! Here's how:
+Contributions are welcome! Here's how to contribute:
 
 1. **Fork** the repository
-2. **Create** a feature branch: `git checkout -b feature/amazing-feature`
-3. **Make** your changes
-4. **Commit** with clear messages: `git commit -m 'Add amazing feature'`
-5. **Push** to your branch: `git push origin feature/amazing-feature`
-6. **Open** a Pull Request
+2. **Create** a feature branch: `git checkout -b feature/your-feature-name`
+3. **Make** your changes and ensure code quality:
+   ```bash
+   npm run lint        # Check linting
+   npm test            # Run tests
+   npm run esbuild     # Build for production
+   ```
+4. **Commit** with clear, descriptive messages
+5. **Push** to your branch
+6. **Submit** a Pull Request with a detailed description
 
 ### Development Guidelines
 
-- Follow ESLint configuration in the project
-- Write TypeScript with proper type annotations
-- Add tests for new features (in `src/test/`)
-- Update documentation and README
-- Keep commits atomic and well-described
+- Write TypeScript for type safety
+- Follow ESLint rules (`npm run lint:fix`)
+- Add tests for new features
+- Update documentation if needed
+- Keep commit messages clear and descriptive
 
-### Reporting Issues
+## Roadmap
 
-Please include:
+- [ ] Multi-language support (Java, Python, Go)
+- [ ] GraphQL route detection
+- [ ] Performance profiling integration
+- [ ] WebSocket support
+- [ ] Custom validation rules
+- [ ] Marketplace collection sharing
+- [ ] Advanced mocking capabilities
 
-- VS Code version (`Help` → `About`)
-- Extension version
-- Node.js version (`node --version`)
-- Operating system
-- Steps to reproduce
-- Error logs (View → Output → "Conduit")
+## Known Limitations
 
----
+- Currently supports Express.js only (other frameworks coming soon)
+- Route detection works best with standard Express patterns
+- MongoDB integration requires connection string configuration
+- Backend must be running for full feature set
 
-## 📄 License
+## Security Considerations
 
-This project is licensed under the **ISC License**. See individual files for details.
+- **API Keys**: Never commit `.env` files with sensitive data
+- **Authentication**: JWT tokens are used for secure API communication
+- **Database**: Use MongoDB Atlas with IP whitelisting for production
+- **CORS**: Configure CORS in `server.js` for production domains
+- **Rate Limiting**: Backend includes rate limiting for API protection
 
----
+## License
 
-## 📚 Additional Resources
+ISC License - See [LICENSE](./LICENSE) file for details
 
-### Folder-Specific Documentation
+## Support & Resources
 
-- [Extension Documentation](conduit/README.md) - Build, develop, and deploy the extension
-- [Backend Documentation](conduit-backend/README.md) - API endpoints and backend configuration
+- 📖 [Marketplace README](./conduit/README.md)
+- 🐛 [Report Issues](https://github.com/MahtabMadni/Conduit--VSCode-Extension/issues)
+- 💬 [Discussions](https://github.com/MahtabMadni/Conduit--VSCode-Extension/discussions)
+- 📝 [CHANGELOG](./conduit/CHANGELOG.md)
+- 🔐 [Security Policy](./SECURITY.md)
 
-### External Docs
+## Credits
 
-- [VS Code Extension API](https://code.visualstudio.com/api)
-- [Express.js Documentation](https://expressjs.com/)
-- [MongoDB Documentation](https://docs.mongodb.com/)
-- [OpenAI API Docs](https://platform.openai.com/docs/)
+Built with ❤️ by the Conduit team
 
----
+## Sponsor
 
-## 🙏 Acknowledgments
-
-- **OpenAI** for GPT-4o enabling intelligent payload generation
-- **MongoDB** for excellent database technology
-- **Express.js** team for the robust web framework
-- **VS Code** team for the amazing extension API
-- **React** community for amazing frontend tooling
-
----
-
-## 👥 Support
-
-For issues, questions, or feature requests:
-
-- **GitHub Issues**: [Report bugs or suggest features](https://github.com/Mahtab-Madni/Conduit--VSCode-Extension/issues)
-- **Email**: [support@example.com](mailto:mahtabjmi2005@gmail.com)
-- **VS Code Marketplace**: [Conduit Extension](https://marketplace.visualstudio.com/items?itemName=MahtabMadni123.conduit-api-playground)
+If you find Conduit useful, consider giving us a ⭐ on GitHub!
 
 ---
 
-<div align="center">
-
-**Made with ❤️ for developers who love productivity**
-
-_Built with TypeScript, React, MongoDB, and enthusiasm_
-
-</div>
+**Happy API Testing! 🚀**

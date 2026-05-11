@@ -1,3 +1,11 @@
+## [0.1.4] - 2026-05-12
+
+### Updated
+- Improved README with clearer features and getting started
+- Backend-powered AI (no API key configuration needed)
+- Enhanced documentation for developers
+- Better troubleshooting guide
+
 ## [0.1.3] - 2026-03-22
 
 ### Added
