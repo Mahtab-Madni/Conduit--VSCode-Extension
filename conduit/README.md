@@ -77,7 +77,7 @@ To create a bug or feature request, do the following:
 ## Resources
 
 - [GitHub Repository](https://github.com/Mahtab-Madni/Conduit--VSCode-Extension)
-- [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=MahtabMadni.Conduit)
+- [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=MahtabMadni123.conduit-api-playground)
 - [Issue Tracker](https://github.com/Mahtab-Madni/Conduit--VSCode-Extension/issues)
 - [Changelog](CHANGELOG.md)
 

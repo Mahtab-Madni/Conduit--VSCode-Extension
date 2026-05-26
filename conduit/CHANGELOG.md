@@ -1,6 +1,16 @@
+## [0.2.0] - 2026-05-26
+
+### Updated
+
+- Updated package description to emphasize "inside your favorite IDE"
+- Updated VS Code Marketplace extension link
+- Added extension categories: Debuggers, Programming Languages, Testing
+- Added extension tags: API client, REST, GraphQL, Express, websocket client, AI debugging
+
 ## [0.1.4] - 2026-05-12
 
 ### Updated
+
 - Improved README with clearer features and getting started
 - Backend-powered AI (no API key configuration needed)
 - Enhanced documentation for developers
@@ -23,7 +33,6 @@
 - Fixed snapshot code capture for ES6 module exports
   - Snapshot service now correctly extracts ES6 exported controller functions
 - Full ES6/CommonJS compatibility for both payload prediction and snapshots
-
 
 ## [0.1.2] - 2026-03-18
 

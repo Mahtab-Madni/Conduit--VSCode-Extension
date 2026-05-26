@@ -1,9 +1,9 @@
 {
   "name": "conduit-api-playground",
   "displayName": "Conduit - API Playground",
-  "description": "Real-time API route detection with intelligent payload generation and interactive testing—all inside VS Code",
+  "description": "Real-time API route detection with intelligent payload generation and interactive testing—all inside your favorite IDE.",
   "publisher": "MahtabMadni123",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/Mahtab-Madni/Conduit--VSCode-Extension"
@@ -15,6 +15,18 @@
     "node": ">=20.0.0"
   },
   "categories": [
+    "Debuggers",
+    "Programming Languages",
+    "Testing"
+  ],
+  "tags": [
+    "API client",
+    "REST",
+    "GraphQL",
+    "Express",
+    "websocket client",
+    "AI debugging",
+    "api client",
     "Testing"
   ],
   "activationEvents": [
